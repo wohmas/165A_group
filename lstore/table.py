@@ -1,5 +1,6 @@
 from lstore.index import Index
 from time import time
+from lstore.page import Page
 
 INDIRECTION_COLUMN = 0
 RID_COLUMN = 1
@@ -26,6 +27,9 @@ class Table:
         self.key = key
         self.num_columns = num_columns
         self.page_directory = {}
+        for i in range(num_columns):
+            name = f'pg_{i}'
+            self.page_directory[name] = Page()
         self.index = Index(self)
         pass
 

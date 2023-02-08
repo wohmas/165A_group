@@ -1,5 +1,6 @@
 from lstore.table import Table, Record
 from lstore.index import Index
+from lstore.page import Page
 
 
 class Query:
@@ -33,13 +34,20 @@ class Query:
         schema_encoding = '0' * self.table.num_columns
         self.table.pages[3].write(schema_encoding)
         rec = Record(self.table.rid, self.table.key, columns)
+        self.table.rid += 1
         self.table.pages[1].write(rec.rid)
-        self.locations = ()
+        self.locations = []
+        self.i = 4
         for value in rec.columns:
-            self.i = 4
-            self.table.pages[self.i].write(value)
+            if self.table.pages[self.i].has_capacity == True:
+                self.table.pages[self.i].write(value)
+            else:
+                self.table.pages[self.i].next_page = Page()
+                self.table.pages[self.i].next_page.write(value)
             self.locations.append(self.i)
             self.i += 1
+        self.locations.append(self.table.bpoffset)
+        self.table.bpoffset += 1
         self.table.page_directory[rec.rid] = self.locations
         pass
 

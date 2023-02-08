@@ -30,6 +30,7 @@ class Table:
         self.index = Index(self)
         self.rid = 0
         self.pages = [Page() for i in range(num_columns + 4)]
+        self.bpoffset = 0
         pass
 
     def __merge(self):

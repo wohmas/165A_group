@@ -1,4 +1,5 @@
 from lstore.table import Table, Record
+from lstore.page import Page
 from lstore.index import Index
 
 
@@ -31,6 +32,11 @@ class Query:
     """
     def insert(self, *columns):
         schema_encoding = '0' * self.table.num_columns
+        new_record = Record(0000, self.key, columns)     # change 0000 to RID implementation
+        for i in columns:
+            new_page = Page()
+            new_page.write(i)
+            self.page_directory.insert(Page())
         pass
 
     

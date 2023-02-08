@@ -28,6 +28,8 @@ class Table:
         self.num_columns = num_columns
         self.page_directory = {}
         self.index = Index(self)
+        self.rid = 0
+        self.pages = [Page() for i in range(num_columns + 4)]
         pass
 
     def __merge(self):

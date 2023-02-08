@@ -31,6 +31,16 @@ class Query:
     """
     def insert(self, *columns):
         schema_encoding = '0' * self.table.num_columns
+        self.table.pages[3].write(schema_encoding)
+        rec = Record(self.table.rid, self.table.key, columns)
+        self.table.pages[1].write(rec.rid)
+        self.locations = ()
+        for value in rec.columns:
+            self.i = 4
+            self.table.pages[self.i].write(value)
+            self.locations.append(self.i)
+            self.i += 1
+        self.table.page_directory[rec.rid] = self.locations
         pass
 
     

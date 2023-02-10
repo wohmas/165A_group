@@ -31,7 +31,8 @@ class Query:
     """
     def insert(self, *columns):
         schema_encoding = '0' * self.table.num_columns
-        pass
+        self.table.insert(columns, schema_encoding)
+        return True
 
     
     """

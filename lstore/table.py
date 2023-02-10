@@ -50,6 +50,7 @@ class Table:
         self.bpwrite([*values, schema, None])
         locations = [self.bp, self.bp[0].num_records]
         self.addpd(self.create_rid(), locations)
+        # Add index insert once functional
         return True
 
     def create_rid(self):

@@ -32,7 +32,7 @@ class Query:
     """
     def insert(self, *columns):
         schema_encoding = '0' * self.table.num_columns
-        new_record = Record(0000, self.key, columns)     # change 0000 to RID implementation
+        new_record = Record(id(self), self.key, columns)   
         for i in columns:
             new_page = Page()
             new_page.write(i)

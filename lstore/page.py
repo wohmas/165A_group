@@ -6,14 +6,15 @@ class Page:
         self.data = bytearray(4096)
 
     def has_capacity(self):
-        try:
-            self.data.index(0)
-            return True
-        except:
-            return False
+        return True 
+     #   try:
+      #      self.data.index(0)
+     #       return True
+     #   except:
+     #       return False
 
     def write(self, value):
         self.num_records += 1
-        address = self.data.index(0)
-        self.data[address] = value
+        # address = self.data.index(0)
+        # self.data[address] = value
 

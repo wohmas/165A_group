@@ -9,6 +9,11 @@ class Index:
         # One index for each table. All our empty initially.
         self.indices = [OOBTree()] *  table.num_columns
         pass
+    
+    # insert new records
+    # if key not unique, will overwrite old rid value
+    def insert(self, rid, key):
+        self.indices[0].update({key: rid}) 
 
     """
     # returns the location of all records with the given value on column "column"

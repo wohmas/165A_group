@@ -15,6 +15,7 @@ class Record:
         self.key = key
         self.columns = columns
 
+
 class Table:
 
     """
@@ -22,6 +23,7 @@ class Table:
     :param num_columns: int     #Number of Columns: all columns are integer
     :param key: int             #Index of table key in columns
     """
+
     def __init__(self, name, num_columns, key):
         self.name = name
         self.key = key
@@ -32,7 +34,7 @@ class Table:
         self.index = Index(self)
         self.rid = 'bp0r0'
         pass
- 
+
     def bpcreate(self):
         self.bpnum += 1
         return [Page() for i in range(self.num_columns + 2)]
@@ -47,16 +49,20 @@ class Table:
     def insert(self, values, schema):
         if not self.bp[0].has_capacity():
             self.bp = self.bpcreate()
-        self.bpwrite([*values, schema, None])
+        self.bpwrite([*values, schema, ""])
         locations = [self.bp, self.bp[0].num_records]
         self.addpd(self.create_rid(), locations)
         self.index.insert(self.rid, values[0])
+        print("intial-->", self.bp[len(self.bp)-2].get_str(0))
+        self.bp[len(self.bp)-2].update_str("01011", 0)
+        print("changed-->", self.bp[len(self.bp)-2].get_str(0))
+
         return True
 
     def create_rid(self):
         self.rid = f'bp{self.bpnum}r{self.bp[0].num_records}'
         return self.rid
-    
+
     def __merge(self):
         print("merge is happening")
         pass

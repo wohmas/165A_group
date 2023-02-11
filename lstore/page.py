@@ -3,7 +3,7 @@ class Page:
 
     def __init__(self):
         self.num_records = 0
-        self.data = bytearray(16)
+        self.data = bytearray(4096)
 
     def has_capacity(self):
         return (self.num_records < 512)
@@ -14,13 +14,10 @@ class Page:
 
     def get_str(self, rec_num):
         str_bytes = self.data[rec_num*8:rec_num*8+8].copy()
-        print("in str")
         return str_bytes.decode("utf-8")
 
     def update_str(self, str, rec_num):
-        print("in update")
         bytes = str.encode('utf-8')
-        print(bytes)
         self.write_to_data(bytes, rec_num)
 
     def write_to_data(self, bytes, rec_num):
@@ -28,7 +25,6 @@ class Page:
         for i in bytes:
             self.data.insert(rec_num*8+count,i)
             count+=1
-        print(self.data)
 
     def write(self, value):
         

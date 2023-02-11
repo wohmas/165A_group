@@ -29,14 +29,14 @@ class Table:
         self.key = key
         self.num_columns = num_columns
         self.page_directory = {}
-        self.bpnum = -1
+        self.bp_num = -1
+        self.tp_num = -1
         self.bp = self.bpcreate()
         self.index = Index(self)
-        self.rid = 'bp0r0'
         pass
 
     def bpcreate(self):
-        self.bpnum += 1
+        self.bp_num += 1
         return [Page() for i in range(self.num_columns + 2)]
 
     def bpwrite(self, values):
@@ -49,19 +49,23 @@ class Table:
     def insert(self, values, schema):
         if not self.bp[0].has_capacity():
             self.bp = self.bpcreate()
+        rid = self.create_rid("bp")
         self.bpwrite([*values, schema, ""])
-        locations = [self.bp, self.bp[0].num_records]
-        self.addpd(self.create_rid(), locations)
-        self.index.insert(self.rid, values[0])
-        print("intial-->", self.bp[len(self.bp)-2].get_str(0))
-        self.bp[len(self.bp)-2].update_str("01011", 0)
-        print("changed-->", self.bp[len(self.bp)-2].get_str(0))
-
+        locations = [self.bp, self.bp[0].num_records-1]
+        self.addpd(rid, locations)
+        self.index.insert(rid, values[0])
+        print("page_dir : ", self.page_directory)
+        print()
         return True
 
-    def create_rid(self):
-        self.rid = f'bp{self.bpnum}r{self.bp[0].num_records}'
-        return self.rid
+    def create_rid(self, pg_type):
+        pg_num = 0
+        if pg_type == 'bp':
+            pg_num = self.bp_num
+        else:
+            pg_num = self.tp_num
+
+        return f'{pg_type}{pg_num}r{self.bp[0].num_records}'
 
     def __merge(self):
         print("merge is happening")

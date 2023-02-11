@@ -3,7 +3,6 @@ A data strucutre holding indices for various columns of a table. Key column shou
 """
 import BTrees
 
-
 class Index:
 
     def __init__(self, table):

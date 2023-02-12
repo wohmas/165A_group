@@ -83,10 +83,10 @@ for key in records:
         if column != records[key][j]:
             error = True
     if error:
-        print('update error on', records[key], 'and',
+        print('update error on', record.print_record(), 'and',
               updated_columns, ':', record, ', correct:', records[key])
     else:
-        print("V 21 done")
+        print("V 2 done")
 
         # print('update on', original, 'and', updated_columns, ':', record)
 

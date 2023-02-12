@@ -26,6 +26,7 @@ class Table:
 
     def __init__(self, name, num_columns, key):
         self.name = name
+        self.nums = 0
         self.key = key
         self.num_columns = num_columns
         self.page_directory = {}
@@ -57,8 +58,8 @@ class Table:
         tp_rid = self.create_rid("tp")
         bp_rid = self.index.locate(0, key)
         record_bp = self.page_directory[bp_rid[0]]
-        indirection = record_bp[0][-1].get_str(record_bp[1])
-        record_bp[0][-1].update_str(tp_rid, record_bp[1])
+        indirection = record_bp[0][-1].get_int(record_bp[1])
+        record_bp[0][-1].update_int(tp_rid, record_bp[1])
         new_schema = ''.join('0' if val is None else '1' for val in cols)
         last_schema = record_bp[0][-2].get_str(record_bp[1])
         val = list(cols)
@@ -78,7 +79,7 @@ class Table:
             for j in range(0, len(self.page_directory[i][0])-2):
                 print(f"col {j}: ",self.page_directory[i][0][j].get_int(self.page_directory[i][1]))
             print("schema : ", self.page_directory[i][0][-2].get_str(self.page_directory[i][1]))
-            print("indirection : ", self.page_directory[i][0][-1].get_str(self.page_directory[i][1]))
+            print("indirection : ", self.page_directory[i][0][-1].get_int(self.page_directory[i][1]))
             print("======================================================")  
          
 
@@ -97,10 +98,12 @@ class Table:
         return True
 
     def create_rid(self, pg_type):
-        if pg_type == 'bp':
-            return f'bp{self.bp_num}r{self.bp[0].num_records}'
-        else:
-            return f'tp{self.tp_num}r{self.tp[0].num_records}'
+        self.nums+=1
+        return self.nums
+        # if pg_type == 'bp':
+        #     return f'bp{self.bp_num}r{self.bp[0].num_records}'
+        # else:
+        #     return f'tp{self.tp_num}r{self.tp[0].num_records}'
 
         
 

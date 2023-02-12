@@ -134,7 +134,7 @@ class Table:
             # <- rid of i + 1th column
             indirect_rid = tail_location[0][-1].get_int(tail_location[1])
             # <- ith indirected column
-            tail_location = self.page_directory[indirect_rid]
+            tail_location = self.page_directory[indirect_rid]  
 
 
     #       continue until we have reached desired record version and have it in location

@@ -107,6 +107,7 @@ class Table:
     # for primary keys for now     
     #
     # def read(self, search_key, search_key_index, projected_columns_index, relative_version):
+    #  return True
     #   rids = self.index.locate(self, search_key_index, search_key)
     #   
     #   for (int i in range(0, length(rids))): 

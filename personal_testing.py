@@ -22,3 +22,5 @@ query.update(15,*[None ,1, None,4, None])
 
 query.table.print_pg()
 # print(query.table.index.locate_range(2, 4, 0))
+
+query.select_version(3, 0, [1, 1, 1, 1], 0)

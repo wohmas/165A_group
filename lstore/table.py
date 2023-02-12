@@ -176,7 +176,7 @@ class Table:
 
     #   create record object    
         r = Record(tail_location[0][-1].get_int(tail_location[1]), search_key, values)
-        r.print_record() 
+        #r.print_record() 
         return r        
 
     def __merge(self):

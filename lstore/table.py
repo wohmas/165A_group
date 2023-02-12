@@ -114,7 +114,9 @@ class Table:
     #   rids = self.index.locate(self, search_key_index, search_key)
     #   
     #   for (int i in range(0, length(rids))): 
-    #       if rids[i][1] == 'b'
+    #       if rids[i][1] == 'b':
+    #           base_rid = rids[i]
+    
     #
     #   \\sort through rids to find the latest version 
     #   \\maybe find the base page rid, go to it, and use indirection for latest

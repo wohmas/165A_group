@@ -46,7 +46,7 @@ class Query:
     """
 
     def select(self, search_key, search_key_index, projected_columns_index):
-        return self.table.read(self, search_key, search_key_index, projected_columns_index, 0)
+        return self.table.read(search_key, search_key_index, projected_columns_index, 0)
 
     """
     # Read matching record with specified search key

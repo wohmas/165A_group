@@ -15,6 +15,9 @@ class Record:
         self.key = key
         self.columns = columns
 
+    def print_record(self):
+        print("RID: " + str(self.rid) + " KEY: " + str(self.key) + " VALUES: " + str(self.columns))    
+
 
 class Table:
 
@@ -104,45 +107,55 @@ class Table:
 
         
 
-    # for primary keys for now     
+    # only for primary keys for now     
     #
-    # def read(self, search_key, search_key_index, projected_columns_index, relative_version):
-    #  return True
-    #   rids = self.index.locate(self, search_key_index, search_key)
-    #   
-    #   for (int i in range(0, length(rids))): 
-    #       if rids[i][1] == 'b':
-    #           base_rid = rids[i]
-    #       break
-    #   
-    #   \\ find base page, and get its indirection column 
-    #   location = self.page_directory[base_rid] 
-    #   latest_rid = location[0][-1].get_int(location[1])
-    #   
-    #   \\ now go to latest tail page
-    #   location = self.page_directory[latest_rid] 
+    def read(self, search_key, search_key_index, projected_columns_index, relative_version):
+        
+        base_rid = self.index.locate(search_key_index, search_key)
+        # print(base_rid[0])
+
+    #   this is the base rid
+    #   find base page, and get its indirection column 
+        base_location = self.page_directory[base_rid[0]] 
+        latest_rid = base_location[0][-1].get_str(base_location[1])
+        # print(latest_rid)
+
+    #   now go to latest tail page
+        tail_location = self.page_directory[latest_rid] 
     #
-    #   for (i in range(0, abs(relative_version))):
-    #       \\use indirection to go to last tail page
-    #       \\store as new location
-    #       indirect_rid = location[0][-1].get_int(location[1]) <- rid of i + 1th column
-    #       location = self.page_directory[indirect_rid] <- ith indirected column
-    #       \\continue until we have reached desired record version and have it in location
-    #   
-    #   \\read latest version of record 
-    #   values = [] <- list store column values
-    #   for (i in range(0, self.num_columns)):
-    #       if (projected_columns_index[i] == 1):
-    #           values.append(location[0][i].get_int(location[1]))
-    #       else:
-    #           values.append(None) \\assuming we don't want to just leave it empty
-    #
-    #   \\create record object    
-    #   rid = location[0][-1].get_int(location[1]) 
-    #   key = ??
-    #   columns = values
-    #   r = Record(rid, key, columns) 
-    #        
+        for i in range(0, abs(relative_version)):
+    #       use indirection to go to last tail page
+    #       store as new location
+            indirect_rid = tail_location[0][-1].get_str(tail_location[1]) # <- rid of i + 1th column
+            # print(indirect_rid)
+            tail_location = self.page_directory[indirect_rid] # <- ith indirected column
+    #       continue until we have reached desired record version and have it in location
+       
+    #   read latest version of record 
+    #   refers to schema so it knows whether to enforce base page or tail page
+        values = [] # <- list to store column values
+        # print("Proj Col = " + str(len(projected_columns_index)))
+        Schema = tail_location[0][-2].get_str(tail_location[1])
+        # print("Schema = " + tail_location[0][-2].get_str(tail_location[1]))
+        for i in range(0, len(projected_columns_index)):
+            if projected_columns_index[i] == 1:
+                # print(Schema[i])    
+                if Schema[i] == str(1):
+                    # print("IF BRANCH CHOSEN")
+                    values.append(tail_location[0][i].get_int(tail_location[1]))
+                    # print(tail_location[0][i].get_int(tail_location[1]))
+                else:
+                    # print("ELSE BRANCH CHOSEN")
+                    values.append(base_location[0][i].get_int(base_location[1]))
+                    # print(base_location[0][i].get_int(base_location[1]))    
+            else:
+                values.append(None) # assuming we don't want to just leave it empty
+                # print(None)
+
+    #   create record object    
+        r = Record(tail_location[0][-1].get_str(tail_location[1]), search_key, values)
+        r.print_record() 
+        return r        
 
     def __merge(self):
         print("merge is happening")

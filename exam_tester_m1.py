@@ -73,7 +73,8 @@ for key in records:
         print('update error on', records[key], 'and',
               updated_columns, ':', record, ', correct:', records[key])
     else:
-        print("V -1 done")
+        #print("V -1 done")
+        pass
         # print('update on', original, 'and', updated_columns, ':', record)
 
     # check version -2 for record
@@ -83,10 +84,11 @@ for key in records:
         if column != records[key][j]:
             error = True
     if error:
-        print('update error on', record.print_record(), 'and',
+        print('update error on', records[key], 'and',
               updated_columns, ':', record, ', correct:', records[key])
     else:
-        print("V 2 done")
+       # print("V 21 done")
+        pass
 
         # print('update on', original, 'and', updated_columns, ':', record)
 
@@ -100,7 +102,8 @@ for key in records:
         print('update error on', records[key], 'and', updated_columns,
               ':', record, ', correct:', updated_records[key])
     else:
-        print("V 0 done")
+       # print("V 0 done")
+        pass
 
 
 keys = sorted(list(records.keys()))
@@ -117,7 +120,9 @@ for c in range(0, grades_table.num_columns):
             print('sum error on [', keys[r[0]], ',', keys[r[1]],
                   ']: ', result, ', correct: ', column_sum)
         else:
-            pass
+           # print("sum: -1 done")
+           pass
+
             # print('sum on [', keys[r[0]], ',', keys[r[1]], ']: ', column_sum)
         # version -2 sum
         column_sum = sum(
@@ -127,7 +132,9 @@ for c in range(0, grades_table.num_columns):
             print('sum error on [', keys[r[0]], ',', keys[r[1]],
                   ']: ', result, ', correct: ', column_sum)
         else:
+            #print("sum: -2 done")
             pass
+
         # version 0 sum
         updated_column_sum = sum(
             map(lambda key: updated_records[key][c], keys[r[0]: r[1] + 1]))
@@ -136,4 +143,5 @@ for c in range(0, grades_table.num_columns):
             print('sum error on [', keys[r[0]], ',', keys[r[1]], ']: ',
                   updated_result, ', correct: ', updated_column_sum)
         else:
+            #print("sum: 0 done")
             pass

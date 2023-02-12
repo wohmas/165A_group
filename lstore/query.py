@@ -12,7 +12,7 @@ class Query:
 
     def __init__(self, table):
         self.table = table
-        pass
+        
 
     """
     # internal Method
@@ -22,7 +22,7 @@ class Query:
     """
 
     def delete(self, primary_key):
-        pass
+        return self.table.delete_rec(primary_key)
 
     """
     # Insert a record with specified columns
@@ -81,7 +81,7 @@ class Query:
     """
 
     def sum(self, start_range, end_range, aggregate_column_index):
-        pass
+        return self.table.sum(start_range, end_range, aggregate_column_index, 0)
 
     """
     :param start_range: int         # Start of the key range to aggregate 
@@ -94,7 +94,8 @@ class Query:
     """
 
     def sum_version(self, start_range, end_range, aggregate_column_index, relative_version):
-        pass
+       return self.table.sum(start_range, end_range, aggregate_column_index, relative_version)
+
 
     """
     incremenets one column of the record

@@ -22,9 +22,9 @@ query.update(15,*[None ,1, None,4, None])
 query.update(15,*[None ,None, None,None, None])
 query.update(15,*[None ,None, 68,68, 68])
 
-query.table.print_pg()
+#query.table.print_pg()
 # print(query.table.index.locate_range(2, 4, 0))
 
-query.select(2, 0, [1,1,1,1,1])
+print(query.select(2, 0, [1,1,1,1,1]))
 
 

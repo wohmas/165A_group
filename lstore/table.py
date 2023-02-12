@@ -120,7 +120,7 @@ class Table:
     #   this is the base rid
     #   find base page, and get its indirection column 
         base_location = self.page_directory[base_rid[0]] 
-        latest_rid = base_location[0][-1].get_str(base_location[1])
+        latest_rid = base_location[0][-1].get_int(base_location[1])
         # print(latest_rid)
 
     #   now go to latest tail page
@@ -129,7 +129,7 @@ class Table:
         for i in range(0, abs(relative_version)):
     #       use indirection to go to last tail page
     #       store as new location
-            indirect_rid = tail_location[0][-1].get_str(tail_location[1]) # <- rid of i + 1th column
+            indirect_rid = tail_location[0][-1].get_int(tail_location[1]) # <- rid of i + 1th column
             # print(indirect_rid)
             tail_location = self.page_directory[indirect_rid] # <- ith indirected column
     #       continue until we have reached desired record version and have it in location
@@ -156,9 +156,11 @@ class Table:
                 # print(None)
 
     #   create record object    
-        r = Record(tail_location[0][-1].get_str(tail_location[1]), search_key, values)
-        r.print_record() 
-        return r        
+        r = Record(tail_location[0][-1].get_int(tail_location[1]), search_key, values)
+        # r.print_record()
+        ret = []
+        ret.append(r)
+        return ret       
 
     def __merge(self):
         print("merge is happening")

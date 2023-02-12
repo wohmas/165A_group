@@ -45,8 +45,8 @@ class Query:
     # Assume that select will never be called on a key that doesn't exist
     """
     def select(self, search_key, search_key_index, projected_columns_index):
-        self.table.read(self, search_key, search_key_index, projected_columns_index, 0)
-        pass
+        return self.table.read(self, search_key, search_key_index, projected_columns_index, 0)
+        
 
     
     """
@@ -60,8 +60,8 @@ class Query:
     # Assume that select will never be called on a key that doesn't exist
     """
     def select_version(self, search_key, search_key_index, projected_columns_index, relative_version):
-        self.table.read(search_key, search_key_index, projected_columns_index, relative_version)
-        pass
+        return self.table.read(search_key, search_key_index, projected_columns_index, relative_version)
+        
 
     
     """

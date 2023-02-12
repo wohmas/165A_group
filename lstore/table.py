@@ -56,27 +56,42 @@ class Table:
 
 
     def update(self, key, cols):
+        # Check if new tail page is needed
         if not self.tp[0].has_capacity():
             self.tp = self.pg_create("tp")
+        # Create RID for tail record being made
         tp_rid = self.create_rid("tp")
+        # Track RID of record to be updated from primary key
         bp_rid = self.index.locate(0, key)
+        # Find record in page directory from RID
         record_bp = self.page_directory[bp_rid[0]]
+        # Track the RID found in the indirection column
         indirection = record_bp[0][-1].get_int(record_bp[1])
+        # Update indirection of base record with newest tail RID
         record_bp[0][-1].update_int(tp_rid, record_bp[1])
+        # Generate schema for updated columns
         new_schema = ''.join('0' if val is None else '1' for val in cols)
+        # Track old schema for later check
         last_schema = record_bp[0][-2].get_str(record_bp[1])
+        # Make input cols mutable
         val = list(cols)
+        # Find previous update for cumulative tail record tracking
+        # If no previous updates -> points to itself
         last_update_record =  self.page_directory[indirection]
+        # Use schema to determine which columns to update newest tail record with
         for i in range(0,len(last_schema)):
             if(last_schema[i] == '1' and cols[i]==None):
                 new_schema = new_schema[:i] + "1" + new_schema[i+1:]
                 val[i] = last_update_record[0][i].get_int(last_update_record[1])
+        # Update the schema in the base record
         record_bp[0][-2].update_str(new_schema, record_bp[1])
+        # Write the input data to the tail record
         self.pg_write(self.tp, [*val, new_schema, indirection])
         locations = [self.tp, self.tp[0].num_records-1]
         self.addpd(tp_rid, locations)
 
     def print_pg(self):
+        '''For Internal use: prints all RIDs and their values found in page directory'''
         for i in self.page_directory.keys():
             print("rid : ", i)
             for j in range(0, len(self.page_directory[i][0])-2):
@@ -89,20 +104,24 @@ class Table:
             
 
     def insert(self, values, schema):
+        # Check if new base page is needed
         if not self.bp[0].has_capacity():
             self.bp = self.pg_create("bp")
+        # Generate RID
         rid = self.create_rid("bp")
+        # Write data to physical pages
+        # Second to last column: Schema
+        # Last column: Indirection
         self.pg_write(self.bp, [*values, schema, rid])
         locations = [self.bp, self.bp[0].num_records-1]
         self.addpd(rid, locations)
         self.index.insert(rid, values[0])
-        # print("page_dir : ", self.page_directory)
-        # print()
         return True
 
     def create_rid(self, pg_type):
         self.nums+=1
         return self.nums
+        # Old RID implementation: Breaks with large input
         # if pg_type == 'bp':
         #     return f'bp{self.bp_num}r{self.bp[0].num_records}'
         # else:

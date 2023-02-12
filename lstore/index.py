@@ -3,31 +3,32 @@ A data strucutre holding indices for various columns of a table. Key column shou
 """
 from BTrees.OOBTree import OOBTree
 
+
 class Index:
 
     def __init__(self, table):
         # One index for each table. All our empty initially.
-        self.indices = [OOBTree()] *  table.num_columns
+        self.indices = [OOBTree()] * table.num_columns
         pass
-    
+
     # insert new records
     # if key not unique, will overwrite old rid value
     def insert(self, rid, key):
-        self.indices[0].update({key: rid}) 
+        self.indices[0].update({key: rid})
 
     """
     # returns the location of all records with the given value on column "column"
     """
 
     def locate(self, column, value):
-        pass
+        return list(self.indices[column].values(value, value))
 
     """
     # Returns the RIDs of all records with values in column "column" between "begin" and "end"
     """
 
     def locate_range(self, begin, end, column):
-        pass
+        return list(self.indices[column].values(begin, end))
 
     """
     # optional: Create index on specific column

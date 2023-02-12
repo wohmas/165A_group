@@ -57,31 +57,27 @@ class Table:
         tp_rid = self.create_rid("tp")
         bp_rid = self.index.locate(0, key)
         record_bp = self.page_directory[bp_rid[0]]
-        indirection = record_bp[0][-1].get_str(record_bp[1])#to put in tp
+        indirection = record_bp[0][-1].get_str(record_bp[1])
         record_bp[0][-1].update_str(tp_rid, record_bp[1])
         new_schema = ''.join('0' if val is None else '1' for val in cols)
         last_schema = record_bp[0][-2].get_str(record_bp[1])
-        print()
-
+        val = list(cols)
         last_update_record =  self.page_directory[indirection]
         for i in range(0,len(last_schema)):
-            if(last_schema[i] == 1 and cols[i]==None):
-                new_schema[i] = "1"
-                cols[i] = last_update_record[0][i].get_int(last_update_record[1])
-        
+            if(last_schema[i] == '1' and cols[i]==None):
+                new_schema = new_schema[:i] + "1" + new_schema[i+1:]
+                val[i] = last_update_record[0][i].get_int(last_update_record[1])
         record_bp[0][-2].update_str(new_schema, record_bp[1])
-        self.pg_write(self.tp, [*cols, new_schema, indirection])
+        self.pg_write(self.tp, [*val, new_schema, indirection])
         locations = [self.tp, self.tp[0].num_records-1]
         self.addpd(tp_rid, locations)
 
     def print_pg(self):
         for i in self.page_directory.keys():
             print("rid : ", i)
-            # print(self.page_directory[i][0])
             for j in range(0, len(self.page_directory[i][0])-2):
                 print(f"col {j}: ",self.page_directory[i][0][j].get_int(self.page_directory[i][1]))
             print("schema : ", self.page_directory[i][0][-2].get_str(self.page_directory[i][1]))
-
             print("indirection : ", self.page_directory[i][0][-1].get_str(self.page_directory[i][1]))
             print("======================================================")  
          
@@ -116,20 +112,20 @@ class Table:
     #   for (int i in range(0, length(rids))): 
     #       if rids[i][1] == 'b':
     #           base_rid = rids[i]
-    
-    #
-    #   \\sort through rids to find the latest version 
-    #   \\maybe find the base page rid, go to it, and use indirection for latest
+    #       break
     #   
-    #
+    #   \\ find base page, and get its indirection column 
+    #   location = self.page_directory[base_rid] 
+    #   latest_rid = location[0][-1].get_int(location[1])
+    #   
+    #   \\ now go to latest tail page
     #   location = self.page_directory[latest_rid] 
-    #   indirect_rid = location[0][-1].get_int(location[1])  <-reads indirection page and stores the rid
     #
     #   for (i in range(0, abs(relative_version))):
     #       \\use indirection to go to last tail page
     #       \\store as new location
-    #       location = self.page_directory[indirect_rid] <- ith indirected column
     #       indirect_rid = location[0][-1].get_int(location[1]) <- rid of i + 1th column
+    #       location = self.page_directory[indirect_rid] <- ith indirected column
     #       \\continue until we have reached desired record version and have it in location
     #   
     #   \\read latest version of record 

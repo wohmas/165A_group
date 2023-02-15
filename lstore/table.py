@@ -177,6 +177,7 @@ class Table:
 
         projected_col_index = [0]*self.num_columns
         projected_col_index[aggregate_column_index]= 1
+        # Could increment records starting at 0
         records = []
         for rid in bp_rids:
             records.append(self.search_rid(rid, projected_col_index, relative_version)[0].columns[aggregate_column_index])

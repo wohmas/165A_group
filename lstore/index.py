@@ -16,6 +16,8 @@ class Index:
     def insert(self, rid, key):
         self.indices[0].update({key: rid})
 
+    
+
     """
     # returns the location of all records with the given value on column "column"
     """

@@ -5,6 +5,12 @@ class Page:
         self.num_records = 0
         self.data = bytearray(4096)
 
+    def __init__(self, data):
+        self.num_records = 0
+        self.data= data
+    
+    def getAll(self):
+        return self.data
     def has_capacity(self):
         return (self.num_records < 512)
     

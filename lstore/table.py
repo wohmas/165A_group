@@ -20,6 +20,69 @@ class Record:
               str(self.key) + " VALUES: " + str(self.columns))
 
 
+class PageGrp:
+    def __init__(self, id, rel_path, num_col):
+        self.id = id
+        self.isDirty = False
+        self.isPinned = False
+        self.rel_path = rel_path+"/pg_"+self.id+".txt"
+        self.pages = self.read_from_file()
+
+    def pg_write(self, values):
+        self.isPinned = True
+        self.isDirty = True
+        for i in range(len(self.pages)):
+            self.pages[i].write(values[i])
+        self.isPinned = False
+
+    def get_col_values(self, record_no, projected_columns_index):
+        self.isPinned = True
+        values = []
+        for i in range(0, len(projected_columns_index)):
+            if projected_columns_index[i] == 1:
+                values.append(self.pages[i].get_int(record_no))
+            else:
+                values.append(None)
+        self.isPinned = False
+        return values
+
+    def write_to_file(self):
+        self.isPinned = True
+        with open(self.rel_path, "wb") as file:
+            for page in self.pages:
+                file.write(page.getAll())
+        self.isPinned = False
+
+    def read_from_file(self):
+        self.isPinned = True
+        page_list = []
+        with open(self.rel_path, "rb") as file:
+            byte = file.read(4096)
+            while byte:
+                page_list.append(Page(byte))
+        self.isPinned = False
+        return page_list
+
+
+class BufferPool:
+    def __init__(self, path, num_col):
+        self.files_in_mem = 0
+        self.next_to_eject = None
+        self.pages_in_mem = {}  # key: id, Value: PageGrp object
+        self.path = path
+        self.num_col = num_col
+
+    def add_page(self, id):
+        # assuming buffer pool has space
+        self.pages_in_mem[id] = PageGrp(id, self.path, self.num_col)
+        self.files_in_mem += 1  # should max out at 16
+
+    def rem_page(self):
+        # to be called in add page if buffer pool is full
+        # logic to eject a page
+        pass
+
+
 class Table:
 
     """
@@ -125,7 +188,7 @@ class Table:
 
     # only for primary keys for now
     def search_rid(self, base_rid, projected_columns_index, relative_version):
-    #   find base page, and get its indirection column
+        #   find base page, and get its indirection column
         base_location = self.page_directory[base_rid]
         indirect_rid = base_location[0][-1].get_int(base_location[1])
     #   now go to latest tail page
@@ -136,16 +199,20 @@ class Table:
                 break
             # use indirection to go to last tail page
             # store as new location
-            indirect_rid = tail_location[0][-1].get_int(tail_location[1]) # <- rid of i + 1th column
-            tail_location = self.page_directory[indirect_rid] # <- i+1th physical location
+            # <- rid of i + 1th column
+            indirect_rid = tail_location[0][-1].get_int(tail_location[1])
+            # <- i+1th physical location
+            tail_location = self.page_directory[indirect_rid]
             # continue until we have reached desired record version and have it in tail_location
 
         # read latest version of record
         # refers to schema so it knows whether to enforce base page or tail page
         Schema = tail_location[0][-2].get_str(tail_location[1])
-        values = self.read_record(projected_columns_index, Schema, tail_location, base_location)
+        values = self.read_record(
+            projected_columns_index, Schema, tail_location, base_location)
 
-        r = Record(indirect_rid, base_location[0][0].get_int(base_location[1]), values)
+        r = Record(indirect_rid, base_location[0][0].get_int(
+            base_location[1]), values)
         ret = []
         ret.append(r)
         return ret
@@ -155,9 +222,11 @@ class Table:
         for i in range(0, len(projected_columns_index)):
             if projected_columns_index[i] == 1:
                 if Schema[i] == str(1):
-                    values.append(tail_location[0][i].get_int(tail_location[1]))
+                    values.append(tail_location[0]
+                                  [i].get_int(tail_location[1]))
                 else:
-                    values.append(base_location[0][i].get_int(base_location[1]))
+                    values.append(base_location[0]
+                                  [i].get_int(base_location[1]))
             else:
                 # assuming we don't want to just leave it empty
                 values.append(None)
@@ -168,28 +237,29 @@ class Table:
         if not self.does_exist(base_rid):
             return False
         return self.search_rid(base_rid, projected_columns_index, relative_version)
-    
+
     def sum(self, start_range, end_range, aggregate_column_index, relative_version):
-        bp_rids = self.index.locate_range(start_range,end_range, 0)
+        bp_rids = self.index.locate_range(start_range, end_range, 0)
         for i in bp_rids:
-             if not self.does_exist(i):
+            if not self.does_exist(i):
                 bp_rids.remove(i)
 
         projected_col_index = [0]*self.num_columns
-        projected_col_index[aggregate_column_index]= 1
+        projected_col_index[aggregate_column_index] = 1
         # Could increment records starting at 0
         records = []
         for rid in bp_rids:
-            records.append(self.search_rid(rid, projected_col_index, relative_version)[0].columns[aggregate_column_index])
+            records.append(self.search_rid(rid, projected_col_index, relative_version)[
+                           0].columns[aggregate_column_index])
         return sum(records)
-        
+
     def does_exist(self, rid):
         if rid in self.page_directory:
             return True
         return False
-        
+
     def delete_rec(self, key):
-        rid = self.index.locate(0,key)[0]
+        rid = self.index.locate(0, key)[0]
         if not self.does_exist(rid):
             return False
         rid_loc = self.page_directory[rid]

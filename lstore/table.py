@@ -295,5 +295,14 @@ class Table:
         return True
 
     def __merge(self):
-        print("merge is happening")
-        pass
+        # Variables that will need to be changed once other code is structured
+        folder_path = ''
+        page_id = 0
+        with open(folder_path) as folder:
+            for file in folder: # loop to get all page groups written
+                conslidated = PageGrp() # New page group for consolidated records
+                for offset in range(file.pages[0].num_records): # get each record from file through offsets
+                    values = file.get_col_values(offset, [1]*len(file)) # get all values from record at offest 
+                                                                        # Should actually be .select()
+                    conslidated.pg_write(values) # write to new page group
+                    self.page_directory[page_id] = conslidated # add to page directory

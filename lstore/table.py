@@ -77,7 +77,10 @@ class BufferPool:
         self.path = path
         self.num_col = num_col
 
-    def rem_page(self, id):
+    # to be called in add page if buffer pool is full
+    # logic to eject a page
+    def rem_page(self):
+        #ejection policy - for now
         for key in self.pages_in_mem:
             if self.pages_in_mem[key].isPinned == False:
                 lowest = self.pages_in_mem[key].pin_count
@@ -87,27 +90,25 @@ class BufferPool:
             if self.pages_in_mem[key].pin_count < lowest and self.pages_in_mem[key].isPinned == False:
                 lowest = key
 
+        # dirty check
         if self.pages_in_mem[lowest].isDirty == True:
             self.pages_in_mem[lowest].write_to_file()
 
-
-        # 1) Remove lowest from dictionary 
-        # 2) Delete the object itself 
-        # 3) Create a new pagegroup object w/ id, path, num_cols arguments
-        # 4) Read from file 
-        # 5) Insert into dictionary
-
-        # to be called in add page if buffer pool is full
-        # logic to eject a page
-
+        # remove item from dictionary
+        # assuming this removes it from memory as well - check
+        del self.pages_in_mem[lowest]   
+          
     def add_page(self, id):
         if self.files_in_mem == 16:
-            self.rem_page(self, id)
+            self.rem_page(self)
 
         # assuming buffer pool has space
         self.pages_in_mem[id] = PageGrp(id, self.path, self.num_col)
-
         self.files_in_mem += 1  # should max out at 16
+
+    # create functions which call pagegroup getter/setters etc. for correct id 
+    # if id does not exist in bufferpool, add page
+    # this way table only interacts with bufferpool    
 
 
 class Table:
@@ -130,7 +131,8 @@ class Table:
         self.bp = self.pg_create("bp")
         self.index = Index(self)
         pass
-
+    
+    # decide on id system
     def pg_create(self, type):
         if type == "bp":
             self.bp_num += 1
@@ -138,10 +140,12 @@ class Table:
             self.tp_num += 1
         return [Page() for i in range(self.num_columns + 2)]
 
+    # now irrelevant because pgroup handles this?
     def pg_write(self, pg, values):
         for i in range(len(pg)):
             pg[i].write(values[i])
 
+    # locations will now just be base/page id, along with offset etc.
     def addpd(self, rid, locations):
         self.page_directory[rid] = locations
 
@@ -194,6 +198,7 @@ class Table:
                   self.page_directory[i][0][-1].get_int(self.page_directory[i][1]))
             print("======================================================")
 
+    
     def insert(self, values, schema):
         # Check if new base page is needed
         if not self.bp[0].has_capacity():
@@ -215,7 +220,7 @@ class Table:
 
     # only for primary keys for now
     def search_rid(self, base_rid, projected_columns_index, relative_version):
-        #   find base page, and get its indirection column
+    #   find base page, and get its indirection column
         base_location = self.page_directory[base_rid]
         indirect_rid = base_location[0][-1].get_int(base_location[1])
     #   now go to latest tail page
@@ -225,10 +230,7 @@ class Table:
             if(indirect_rid == base_rid):
                 break
             # use indirection to go to last tail page
-            # store as new location
-            # <- rid of i + 1th column
             indirect_rid = tail_location[0][-1].get_int(tail_location[1])
-            # <- i+1th physical location
             tail_location = self.page_directory[indirect_rid]
             # continue until we have reached desired record version and have it in tail_location
 

@@ -46,7 +46,7 @@ class PageGrp:
         self.isPinned = False
         return values
     
-    def get_col_value(self, num, offset)
+    def get_col_value(self, num, offset):
         return self.pages[num].get_int(offset)
 
     def write_to_file(self):

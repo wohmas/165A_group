@@ -236,13 +236,14 @@ class Table:
 
         rid = self.create_rid()
         # write values to base page
-        base_page.pg_write(self, values)
+        base_page.pg_write(self, [*values, schema, rid])
         # update page directory and index
-        locations = [self.latest_bp_id, base_page.num_records(self)]
+        locations = [self.latest_bp_id, base_page.num_records(self) - 1] 
         self.addpd(rid, locations)
         self.index.insert(rid, values[0])
 
         return True
+    
 
     def create_rid(self):
         self.nums += 1

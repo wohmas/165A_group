@@ -70,7 +70,7 @@ class PageGrp:
 
 
 class BufferPool:
-    def init(self, path, num_col):
+    def __init__(self, path, num_col):
         self.files_in_mem = 0
         self.next_to_eject = None
         self.pages_in_mem = {}  # key: id, Value: PageGrp object
@@ -80,7 +80,7 @@ class BufferPool:
     # to be called in add page if buffer pool is full
     # logic to eject a page
     def rem_page(self):
-        #ejection policy - for now
+        # ejection policy - for now
         for key in self.pages_in_mem:
             if self.pages_in_mem[key].isPinned == False:
                 lowest = self.pages_in_mem[key].pin_count
@@ -96,8 +96,8 @@ class BufferPool:
 
         # remove item from dictionary
         # assuming this removes it from memory as well - check
-        del self.pages_in_mem[lowest]   
-          
+        del self.pages_in_mem[lowest]
+
     def add_page(self, id):
         if self.files_in_mem == 16:
             self.rem_page(self)
@@ -106,9 +106,9 @@ class BufferPool:
         self.pages_in_mem[id] = PageGrp(id, self.path, self.num_col)
         self.files_in_mem += 1  # should max out at 16
 
-    # create functions which call pagegroup getter/setters etc. for correct id 
+    # create functions which call pagegroup getter/setters etc. for correct id
     # if id does not exist in bufferpool, add page
-    # this way table only interacts with bufferpool    
+    # this way table only interacts with bufferpool
 
 
 class Table:
@@ -130,8 +130,7 @@ class Table:
         self.tp = self.pg_create("tp")
         self.bp = self.pg_create("bp")
         self.index = Index(self)
-        pass
-    
+
     # decide on id system
     def pg_create(self, type):
         if type == "bp":
@@ -198,7 +197,6 @@ class Table:
                   self.page_directory[i][0][-1].get_int(self.page_directory[i][1]))
             print("======================================================")
 
-    
     def insert(self, values, schema):
         # Check if new base page is needed
         if not self.bp[0].has_capacity():
@@ -208,10 +206,10 @@ class Table:
         # Write data to physical pages
         # Second to last column: Schema
         # Last column: Indirection
+        self.index.insert(rid, values)
         self.pg_write(self.bp, [*values, schema, rid])
         locations = [self.bp, self.bp[0].num_records-1]
         self.addpd(rid, locations)
-        self.index.insert(rid, values[0])
         return True
 
     def create_rid(self, pg_type):
@@ -220,7 +218,7 @@ class Table:
 
     # only for primary keys for now
     def search_rid(self, base_rid, projected_columns_index, relative_version):
-    #   find base page, and get its indirection column
+        #   find base page, and get its indirection column
         base_location = self.page_directory[base_rid]
         indirect_rid = base_location[0][-1].get_int(base_location[1])
     #   now go to latest tail page
@@ -242,9 +240,9 @@ class Table:
 
         r = Record(indirect_rid, base_location[0][0].get_int(
             base_location[1]), values)
-        ret = []
-        ret.append(r)
-        return ret
+        # ret = []
+        # ret.append(r)
+        return r
 
     def read_record(self, projected_columns_index, Schema, tail_location, base_location):
         values = []
@@ -262,10 +260,17 @@ class Table:
         return values
 
     def read(self, search_key, search_key_index, projected_columns_index, relative_version):
-        base_rid = self.index.locate(search_key_index, search_key)[0]
-        if not self.does_exist(base_rid):
+        base_rids = self.index.locate(search_key_index, search_key)[0]
+        for i in base_rids:
+            if not self.does_exist(i):
+                base_rids.remove(i)
+        if len(base_rids) == 0:
             return False
-        return self.search_rid(base_rid, projected_columns_index, relative_version)
+        records = []
+        for rid in base_rids:
+            records.append(self.search_rid(
+                rid, projected_columns_index, relative_version))
+        return records
 
     def sum(self, start_range, end_range, aggregate_column_index, relative_version):
         bp_rids = self.index.locate_range(start_range, end_range, 0)

@@ -8,15 +8,20 @@ class Index:
 
     def __init__(self, table):
         # One index for each table. All our empty initially.
-        self.indices = [OOBTree()] * table.num_columns
-        pass
+        self.indices = [OOBTree() for i in range(table.num_columns)]
 
     # insert new records
     # if key not unique, will overwrite old rid value
-    def insert(self, rid, key):
-        self.indices[0].update({key: rid})
-
-    
+    def insert(self, rid, values):
+        i = 0
+        for value in values:
+            vals = self.locate(i, value)
+            if len(vals) != 0:
+                vals = vals[0]
+            vals.append(rid)
+            # print("col: ", i, "value: ", value, "vals: ", vals)
+            self.indices[i].update({value: vals})
+            i += 1
 
     """
     # returns the location of all records with the given value on column "column"

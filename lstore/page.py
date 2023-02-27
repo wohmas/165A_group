@@ -5,9 +5,9 @@ class Page:
         self.num_records = 0
         self.data = bytearray(4096)
 
-    def __init__(self, data):
-        self.num_records = 0
-        self.data= data
+    # def __init__(self, data):
+    #     self.num_records = 0
+    #     self.data= data
     
     def getAll(self):
         return self.data

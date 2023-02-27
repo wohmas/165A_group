@@ -208,6 +208,7 @@ class Table:
         locations = [self.latest_tp_id, tail_page.num_records(self) - 1]
         self.addpd(tp_rid, locations)
 
+
     # STILL NOT UPDATED FOR BUFFERPOOL
     def print_pg(self):
         '''For Internal use: prints all RIDs and their values found in page directory'''

@@ -34,14 +34,12 @@ class PageGrp:
         return self.id
 
     def pg_write(self, values):
-        self.isPinned = True
         self.isDirty = True
         for i in range(len(self.pages)):
             self.pages[i].write(values[i])
-        self.isPinned = False
 
     def get_col_values(self, record_no, projected_columns_index):
-        self.isPinned = True
+
         values = []
         for i in range(0, len(projected_columns_index)):
             if projected_columns_index[i] == 1:
@@ -73,11 +71,11 @@ class PageGrp:
 
                 while True:
                     bytes = file.read(32)
-                    print(bytes)
+                    # print(bytes)
                     if not bytes:
                         break
                     page_list.append(Page(r, bytes))
-                    print("================================")
+                    # print("================================")
 
         except:
             print("file does not exists")
@@ -141,7 +139,7 @@ class BufferPool:
 
     def add_page(self, id):
         print("in add")
-        if self.files_in_mem >= 1:
+        if self.files_in_mem >= 2:
             self.rem_page()
         print("in add after rem")
 
@@ -192,9 +190,11 @@ class Table:
     def update(self, key, cols):
         # ask bufferpool for latest tail page
         tail_page = self.buffer_pool.return_page(self.latest_tp_id)
+
         # if full, create new tail page ID
         # by requesting the page bufferpool (should) automatically create it
         if tail_page.has_capacity() == False:
+
             self.latest_tp_id = self.create_pid()
             tail_page = self.buffer_pool.return_page(self.latest_tp_id)
 
@@ -207,6 +207,7 @@ class Table:
         base_offset = self.page_directory[bp_rid][1]
         # get basepage from bufferpool using ID
         base_page = self.buffer_pool.return_page(bp_id)
+
         # get rid from base indirection column via pagegroup
         indirection = base_page.get_indirection(base_offset)
         # update indirection value of base record via pagegroup
@@ -257,6 +258,7 @@ class Table:
         # if full, create new base page ID
         # by requesting the page bufferpool (should) automatically create it
         if base_page.has_capacity() == False:
+            print("in has cap false")
             self.latest_bp_id = self.create_pid()
             base_page = self.buffer_pool.return_page(self.latest_bp_id)
 

@@ -34,12 +34,14 @@ class PageGrp:
         return self.id
 
     def pg_write(self, values):
+        self.isPinned = True
         self.isDirty = True
         for i in range(len(self.pages)):
             self.pages[i].write(values[i])
+        self.isPinned = False
 
     def get_col_values(self, record_no, projected_columns_index):
-
+        self.isPinned = True
         values = []
         for i in range(0, len(projected_columns_index)):
             if projected_columns_index[i] == 1:
@@ -80,7 +82,7 @@ class PageGrp:
         except:
             print("file does not exists")
             page_list = [Page(0, -1) for i in range(self.num_col+2)]
-        else:
+        finally:
             self.isPinned = False
         return page_list
 

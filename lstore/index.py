@@ -16,8 +16,6 @@ class Index:
     # if key not unique, will overwrite old rid value
     def insert(self, rid, value, col):
         vals = self.locate(col, value)
-        # if len(vals) != 0:
-        #     vals = vals[0]
         vals.append(rid)
         # print("col: ", i, "value: ", value, "vals: ", vals)
         self.indices[col].update({value: vals})
@@ -35,7 +33,8 @@ class Index:
     def locate(self, column, value):
         ret = None
         if self.indices[column] == None:
-            ret = self.search_db(column, value, value)
+            return self.search_db(column, value, value)
+        
         ret = list(self.indices[column].values(value, value))
         if len(ret) == 0:
             return ret
@@ -47,7 +46,16 @@ class Index:
     """
 
     def locate_range(self, begin, end, column):
-        return list(self.indices[column].values(begin, end))
+        ret = None
+        if self.indices[column] == None:
+            return self.search_db(column, begin, end)
+        bp_rids= list(self.indices[column].values(begin, end))
+        ret = []
+        for rids in bp_rids:
+            if rids != []:
+                ret.append(*rids)
+        print(ret)
+        return ret
 
     def search_db(self, column_number, begin, end):
         bp_no = self.table.bp_num

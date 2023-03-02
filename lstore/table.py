@@ -383,11 +383,11 @@ class Table:
 
     def sum(self, start_range, end_range, aggregate_column_index, relative_version):
         bp_rids = self.index.locate_range(start_range, end_range, 0)
-        rid_list = []
-        for rids in bp_rids:
-            if rids != []:
-                rid_list.append(*rids)
-        bp_rids = rid_list
+        # rid_list = []
+        # for rids in bp_rids:
+        #     if rids != []:
+        #         rid_list.append(*rids)
+        # bp_rids = rid_list
         print(bp_rids)
         for i in bp_rids:
             if not self.does_exist(i):

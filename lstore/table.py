@@ -250,7 +250,7 @@ class Table:
 
         # get rid from base indirection column via pagegroup
         indirection = base_page.get_indirection(base_offset)
-        print("bp rid: ", bp_rid, " indirection: ", indirection)
+        # print("bp rid: ", bp_rid, " indirection: ", indirection)
         # update indirection value of base record via pagegroup
 
         # get schema from base record via pagegroup
@@ -277,8 +277,7 @@ class Table:
 
         # ..go from there
         base_page.update_schema(new_schema, base_offset)
-        print("new schema: ", new_schema)
-        print("updated schema: ", base_page.get_schema(base_offset))
+
         # hopefully this works
         tail_page.pg_write([*val, bp_rid, new_schema, indirection])
         locations = [tail_page.get_id(), tail_page.num_records() - 1]
@@ -401,7 +400,7 @@ class Table:
         #     if rids != []:
         #         rid_list.append(*rids)
         # bp_rids = rid_list
-        print(bp_rids)
+        # print(bp_rids)
         for i in bp_rids:
             if not self.does_exist(i):
                 bp_rids.remove(i)

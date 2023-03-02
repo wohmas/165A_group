@@ -40,7 +40,7 @@ class Index:
         ret = list(self.indices[column].values(value, value))
         if len(ret) == 0:
             return ret
-        print(ret[0])
+        # print(ret[0])
         return ret[0]
 
     """
@@ -56,7 +56,7 @@ class Index:
         for rids in bp_rids:
             if rids != []:
                 ret.append(*rids)
-        print(ret)
+        # print(ret)
         return ret
 
     def search_db(self, column_number, begin, end):

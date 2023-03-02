@@ -22,7 +22,7 @@ query.insert(17, 213, 123, 45, 7)
 
 query.insert(18, 213, 123, 45, 7)
 query.insert(19, 213, 123, 45, 7)
-query.insert(20, 213, 123, 45, 7)
+query.insert(20, 56, 4, 45, 7)
 # query.insert(12, 1, 1, 1, 1)
 
 query.table.index.create_index(4)
@@ -40,8 +40,8 @@ query.update(15, *[None, None, 68, 68, 68])
 # query.table.print_pg()
 # print(query.table.index.locate_range(2, 4, 0))
 
-print("page_range:\n", query.table.page_range_map)
-print()
+# print("page_range:\n", query.table.page_range_map)
+# print()
 query.table.print_pg()
 
 r = query.select_version(7, 4, [1, 1, 1, 1, 1], 0)
@@ -50,5 +50,4 @@ for i in r:
 # print(query.delete(2))
 # print(query.select_version(2, 0, [1, 1, 1, 1, 1], -4))
 print(query.sum_version(2, 10, 4, 0))
-print(query.table.index.search_db(0, 2, 10))
 db.close()

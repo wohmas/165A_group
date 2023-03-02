@@ -1,6 +1,7 @@
 from lstore.index import Index
 from time import time
 from lstore.page import Page
+import os
 
 INDIRECTION_COLUMN = 0
 RID_COLUMN = 1
@@ -24,49 +25,88 @@ class PageGrp:
     def __init__(self, id, rel_path, num_col):
         self.id = id
         self.isDirty = False
+        self.num_col = num_col
         self.isPinned = False
-        self.pin_count = 0
-        self.rel_path = rel_path+"/pg_"+self.id+".txt"
+        self.rel_path = "pg_"+str(self.id)+".txt"
         self.pages = self.read_from_file()
 
+    def get_id(self):
+        return self.id
+
     def pg_write(self, values):
-        self.isPinned = True
-        pin_count += 1
         self.isDirty = True
         for i in range(len(self.pages)):
             self.pages[i].write(values[i])
-        self.isPinned = False
 
     def get_col_values(self, record_no, projected_columns_index):
-        self.isPinned = True
-        pin_count += 1
         values = []
         for i in range(0, len(projected_columns_index)):
             if projected_columns_index[i] == 1:
                 values.append(self.pages[i].get_int(record_no))
             else:
                 values.append(None)
-        self.isPinned = False
         return values
 
+    # def get_col_value(self, num, offset):
+    #     return self.pages[num].get_int(offset)
+
     def write_to_file(self):
-        self.isPinned = True
-        pin_count += 1
         with open(self.rel_path, "wb") as file:
+            rec_num = self.pages[0].num_records.to_bytes(8, "little")
+            file.write(rec_num)
             for page in self.pages:
                 file.write(page.getAll())
-        self.isPinned = False
 
     def read_from_file(self):
-        self.isPinned = True
-        pin_count += 1
         page_list = []
-        with open(self.rel_path, "rb") as file:
-            byte = file.read(4096)
-            while byte:
-                page_list.append(Page(byte))
-        self.isPinned = False
+        try:
+            with open(self.rel_path, "rb") as file:
+                rec_num = file.read(8)
+                r = int.from_bytes(rec_num, "little")
+
+                while True:
+                    bytes = file.read(32)
+                    # print(bytes)
+                    if not bytes:
+                        break
+                    page_list.append(Page(r, bytes))
+                    # print("================================")
+
+        except:
+            print("file does not exists")
+            page_list = [Page(0, -1) for i in range(self.num_col+2)]
         return page_list
+
+    def print_contents(self, offset):
+        vals = self.get_col_values(offset, [1 for _ in range(self.num_col)])
+        print(f"columns : {vals}")
+        print(f"schema: {self.get_schema(offset)}")
+        print(f"indirection: {self.get_indirection(offset)}")
+
+    # so table does not directly interact with page objects
+    def has_capacity(self):
+        return self.pages[0].has_capacity()
+
+    def num_records(self):
+        return self.pages[0].num_records
+
+    def get_indirection(self, offset):
+        return self.pages[-1].get_int(offset)
+
+    def update_indirection(self, value, offset):
+        self.pages[-1].update_int(value, offset)
+
+    def get_schema(self, offset):
+        return self.pages[-2].get_str(offset)
+
+    def update_schema(self, schema, offset):
+        return self.pages[-2].update_str(schema, offset)
+
+    def pin(self):
+        self.isPinned = True
+
+    def unpin(self):
+        self.isPinned = False
 
 
 class BufferPool:
@@ -78,37 +118,38 @@ class BufferPool:
         self.num_col = num_col
 
     # to be called in add page if buffer pool is full
-    # logic to eject a page
+    # page ejection
     def rem_page(self):
-        # ejection policy - for now
-        for key in self.pages_in_mem:
-            if self.pages_in_mem[key].isPinned == False:
-                lowest = self.pages_in_mem[key].pin_count
+        # currently assumes no scenario where all pages are pinned
+        # in milestone 3 this assumption will not hold and we will need more conditions
+        print("in rem")
+        for id in self.pages_in_mem.keys():
+            if self.pages_in_mem[id].isDirty == False and self.pages_in_mem[id].isPinned == False:
+                del self.pages_in_mem[id]
+                self.files_in_mem -= 1
                 break
 
-        for key in self.pages_in_mem:
-            if self.pages_in_mem[key].pin_count < lowest and self.pages_in_mem[key].isPinned == False:
-                lowest = key
-
-        # dirty check
-        if self.pages_in_mem[lowest].isDirty == True:
-            self.pages_in_mem[lowest].write_to_file()
-
-        # remove item from dictionary
-        # assuming this removes it from memory as well - check
-        del self.pages_in_mem[lowest]
+        for id in self.pages_in_mem.keys():
+            if self.pages_in_mem[id].isDirty == True and self.pages_in_mem[id].isPinned == False:
+                self.pages_in_mem[id].write_to_file()
+                del self.pages_in_mem[id]
+                self.files_in_mem -= 1
+                break
 
     def add_page(self, id):
-        if self.files_in_mem == 16:
-            self.rem_page(self)
+        if self.files_in_mem >= 3:
+            self.rem_page()
 
         # assuming buffer pool has space
         self.pages_in_mem[id] = PageGrp(id, self.path, self.num_col)
         self.files_in_mem += 1  # should max out at 16
 
-    # create functions which call pagegroup getter/setters etc. for correct id
-    # if id does not exist in bufferpool, add page
-    # this way table only interacts with bufferpool
+    # table getter
+    def return_page(self, id):
+        if self.pages_in_mem.get(id) == None:
+            self.add_page(id)
+
+        return self.pages_in_mem.get(id)
 
 
 class Table:
@@ -120,26 +161,20 @@ class Table:
     """
 
     def __init__(self, name, num_columns, key):
+        # recieve database path, create tail page path by appending name to it
         self.name = name
-        self.nums = 0
         self.key = key
         self.num_columns = num_columns
         self.page_directory = {}
-        self.bp_num = -1
-        self.tp_num = -1
-        self.tp = self.pg_create("tp")
-        self.bp = self.pg_create("bp")
+        self.nums = 0
+        self.page_num = 0
+        self.latest_bp_id = self.create_pid()
+        self.latest_tp_id = self.create_pid()
         self.index = Index(self)
-
-    # decide on id system
-    def pg_create(self, type):
-        if type == "bp":
-            self.bp_num += 1
-        else:
-            self.tp_num += 1
-        return [Page() for i in range(self.num_columns + 2)]
+        self.buffer_pool = BufferPool(name, num_columns)
 
     # now irrelevant because pgroup handles this?
+
     def pg_write(self, pg, values):
         for i in range(len(pg)):
             pg[i].write(values[i])
@@ -149,114 +184,150 @@ class Table:
         self.page_directory[rid] = locations
 
     def update(self, key, cols):
-        # Check if new tail page is needed
-        if not self.tp[0].has_capacity():
-            self.tp = self.pg_create("tp")
-        # Create RID for tail record being made
-        tp_rid = self.create_rid("tp")
-        # Track RID of record to be updated from primary key
-        bp_rid = self.index.locate(0, key)
-        # Find record in page directory from RID
-        record_bp = self.page_directory[bp_rid[0]]
-        # Track the RID found in the indirection column
-        indirection = record_bp[0][-1].get_int(record_bp[1])
-        # Update indirection of base record with newest tail RID
-        record_bp[0][-1].update_int(tp_rid, record_bp[1])
-        # Generate schema for updated columns
+        # ask bufferpool for latest tail page
+        tail_page = self.buffer_pool.return_page(self.latest_tp_id)
+        tail_page.pin()
+
+        # if full, create new tail page ID
+        # by requesting the page bufferpool (should) automatically create it
+        if tail_page.has_capacity() == False:
+
+            self.latest_tp_id = self.create_pid()
+            tail_page.unpin()
+            tail_page = self.buffer_pool.return_page(self.latest_tp_id)
+            tail_page.pin()
+
+        tp_rid = self.create_rid()
+        # use index to get base rid related to key
+        # find basepage ID from page directory
+        bp_rid = self.index.locate(0, key)[0]
+        # find basepage ID from page directory
+        bp_id = self.page_directory[bp_rid][0]
+        base_offset = self.page_directory[bp_rid][1]
+        # get basepage from bufferpool using ID
+        base_page = self.buffer_pool.return_page(bp_id)
+        base_page.pin()
+        # get rid from base indirection column via pagegroup
+        indirection = base_page.get_indirection(base_offset)
+        # update indirection value of base record via pagegroup
+        base_page.update_indirection(tp_rid, base_offset)
+        # generate schema for updated columns
         new_schema = ''.join('0' if val is None else '1' for val in cols)
-        # Track old schema for later check
-        last_schema = record_bp[0][-2].get_str(record_bp[1])
+        # get schema from base record via pagegroup
+        last_schema = base_page.get_schema(base_offset)
         # Make input cols mutable
         val = list(cols)
-        # Find previous update for cumulative tail record tracking
-        # If no previous updates -> points to itself
-        last_update_record = self.page_directory[indirection]
-        # Use schema to determine which columns to update newest tail record with
+        # use old indirection value (first step of this block) to get corresponding page directory ID
+        last_update_record_id = self.page_directory[indirection][0]
+        last_update_record_offset = self.page_directory[indirection][1]
+        # use bufferpool to get corresponding pagegroup object
+        last_update_record = self.buffer_pool.return_page(
+            last_update_record_id)
+
+        # recreate for loop w/ appropiate pagegroup references
         for i in range(0, len(last_schema)):
+            projected_index = [None for i in range(self.num_columns)]
             if(last_schema[i] == '1' and cols[i] == None):
                 new_schema = new_schema[:i] + "1" + new_schema[i+1:]
-                val[i] = last_update_record[0][i].get_int(
-                    last_update_record[1])
-        # Update the schema in the base record
-        record_bp[0][-2].update_str(new_schema, record_bp[1])
-        # Write the input data to the tail record
-        self.pg_write(self.tp, [*val, new_schema, indirection])
-        locations = [self.tp, self.tp[0].num_records-1]
+                projected_index[i] = 1
+                val[i] = last_update_record.get_col_values(
+                    last_update_record_offset, projected_index)[i]
+
+        # ..go from there
+        base_page.update_schema(new_schema, base_offset)
+        # hopefully this works
+        tail_page.pg_write([*val, new_schema, indirection])
+        locations = [tail_page.get_id(), tail_page.num_records() - 1]
+        tail_page.unpin()
+        base_page.unpin()
         self.addpd(tp_rid, locations)
+
+    # STILL NOT UPDATED FOR BUFFERPOOL
 
     def print_pg(self):
         '''For Internal use: prints all RIDs and their values found in page directory'''
         for i in self.page_directory.keys():
             print("rid : ", i)
-            for j in range(0, len(self.page_directory[i][0])-2):
-                print(f"col {j}: ", self.page_directory[i][0][j].get_int(
-                    self.page_directory[i][1]))
-            print(
-                "schema : ", self.page_directory[i][0][-2].get_str(self.page_directory[i][1]))
-            print("indirection : ",
-                  self.page_directory[i][0][-1].get_int(self.page_directory[i][1]))
+            pg = self.buffer_pool.return_page(self.page_directory[i][0])
+            pg.print_contents(self.page_directory[i][1])
             print("======================================================")
 
     def insert(self, values, schema):
-        # Check if new base page is needed
-        if not self.bp[0].has_capacity():
-            self.bp = self.pg_create("bp")
-        # Generate RID
-        rid = self.create_rid("bp")
-        # Write data to physical pages
-        # Second to last column: Schema
-        # Last column: Indirection
+        # ask bufferpool for newest base page
+        # call has_capacity on page_group
+        base_page = self.buffer_pool.return_page(self.latest_bp_id)
+        base_page.pin()
+        # if full, create new base page ID
+        # by requesting the page bufferpool (should) automatically create it
+        if base_page.has_capacity() == False:
+            print("in has cap false")
+            self.latest_bp_id = self.create_pid()
+            base_page.unpin()
+            base_page = self.buffer_pool.return_page(self.latest_bp_id)
+            base_page.pin()
+
+        rid = self.create_rid()
+        # write values to base page
+        base_page.pg_write([*values, schema, rid])
+        # update page directory and index
+        locations = [base_page.get_id(), base_page.num_records() - 1]
+        base_page.unpin()
         self.index.insert(rid, values)
-        self.pg_write(self.bp, [*values, schema, rid])
-        locations = [self.bp, self.bp[0].num_records-1]
         self.addpd(rid, locations)
         return True
 
-    def create_rid(self, pg_type):
+    def create_rid(self):
         self.nums += 1
         return self.nums
 
+    def create_pid(self):
+        self.page_num += 1
+        return self.page_num
+
     # only for primary keys for now
     def search_rid(self, base_rid, projected_columns_index, relative_version):
-        #   find base page, and get its indirection column
-        base_location = self.page_directory[base_rid]
-        indirect_rid = base_location[0][-1].get_int(base_location[1])
-    #   now go to latest tail page
-        tail_location = self.page_directory[indirect_rid]
-
+        # id of page corresponding to rid
+        base_page_id = self.page_directory[base_rid][0]
+        # offset value corresponding to rid
+        base_record_offset = self.page_directory[base_rid][1]
+        # actual page object which contains the rid
+        base_page = self.buffer_pool.return_page(base_page_id)
+        base_page.pin()
+        # get indirection value of this base page
+        indirect_rid = base_page.get_indirection(base_record_offset)
+        # go to latest tail page, get its info
+        tail_page_id = self.page_directory[indirect_rid][0]
+        tail_record_offset = self.page_directory[indirect_rid][1]
+        tail_page = self.buffer_pool.return_page(tail_page_id)
+        tail_page.pin()
         for i in range(0, abs(relative_version)):
-            if(indirect_rid == base_rid):
+            if indirect_rid == base_rid:
                 break
             # use indirection to go to last tail page
-            indirect_rid = tail_location[0][-1].get_int(tail_location[1])
-            tail_location = self.page_directory[indirect_rid]
-            # continue until we have reached desired record version and have it in tail_location
+            indirect_rid = tail_page.get_indirection(tail_record_offset)
+            tail_page_id = self.page_directory[indirect_rid][0]
+            tail_record_offset = self.page_directory[indirect_rid][1]
+            tail_page.unpin()
+            tail_page = self.buffer_pool.return_page(tail_page_id)
+            tail_page.pin()
+        # continue until we have reached desired record version and have it in tail_location
 
-        # read latest version of record
-        # refers to schema so it knows whether to enforce base page or tail page
-        Schema = tail_location[0][-2].get_str(tail_location[1])
-        values = self.read_record(
-            projected_columns_index, Schema, tail_location, base_location)
-
-        r = Record(indirect_rid, base_location[0][0].get_int(
-            base_location[1]), values)
-        # ret = []
-        # ret.append(r)
+        Schema = tail_page.get_schema(tail_record_offset)
+        values = self.read_record(Schema, base_page.get_col_values(
+            base_record_offset, projected_columns_index), tail_page.get_col_values(tail_record_offset, projected_columns_index))
+        r = Record(indirect_rid, base_page.get_col_values(
+            base_record_offset, [1] + [None for i in range(self.num_columns-1)])[0], values)
+        tail_page.unpin()
+        base_page.unpin()
         return r
 
-    def read_record(self, projected_columns_index, Schema, tail_location, base_location):
+    def read_record(self, schema, base_val, tail_val):
         values = []
-        for i in range(0, len(projected_columns_index)):
-            if projected_columns_index[i] == 1:
-                if Schema[i] == str(1):
-                    values.append(tail_location[0]
-                                  [i].get_int(tail_location[1]))
-                else:
-                    values.append(base_location[0]
-                                  [i].get_int(base_location[1]))
+        for i in range(0, len(schema)):
+            if schema[i] == str(1):
+                values.append(tail_val[i])
             else:
-                # assuming we don't want to just leave it empty
-                values.append(None)
+                values.append(base_val[i])
         return values
 
     def read(self, search_key, search_key_index, projected_columns_index, relative_version):
@@ -296,11 +367,27 @@ class Table:
         rid = self.index.locate(0, key)[0]
         if not self.does_exist(rid):
             return False
-        rid_loc = self.page_directory[rid]
-        rid_loc[0][-1].update_int(0, rid_loc[1])
+        rid_page_id = self.page_directory[rid][0]
+        rid_record_offset = self.page_directory[rid][1]
+        rid_page = self.buffer_pool.return_page(rid_page_id)
+        rid_page.pin()
+        rid_page.update_indirection(0, rid_record_offset)
+        rid_page.unpin()
         self.page_directory.pop(rid)
         return True
 
     def __merge(self):
-        print("merge is happening")
-        pass
+       # Variables that will need to be changed once other code is structured
+        folder_path = ''
+        page_id = 0
+        with os.listdir(folder_path) as folder:
+            for file in folder:  # loop to get all page groups written
+                conslidated = PageGrp()  # New page group for consolidated records
+                # get each record from file through offsets
+                for offset in range(file.pages[0].num_records):
+                    # get all values from record at offest
+                    values = file.get_col_values(offset, [1]*len(file))
+                    # Should actually be .select()
+                    conslidated.pg_write(values)  # write to new page group
+                    # add to page directory
+                    self.page_directory[page_id] = conslidated

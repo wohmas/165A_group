@@ -2,9 +2,12 @@ from lstore.db import Database
 from lstore.query import Query
 
 db = Database()
+db.open('./ECS165')
 test_table = db.create_table("test", 5, 1)
+#test2_table = db.create_table("test2", 5, 1)
 
 query = Query(test_table)
+#query2 = Query(test2_table)
 
 # query.insert(6,5)
 query.insert(91, 12, 213, 34, 0)
@@ -37,6 +40,9 @@ query.update(15, *[None, None, 68, 68, 68])
 
 # query.table.print_pg()
 # print(query.table.index.locate_range(2, 4, 0))
+
+
+
 print("page_range:\n", query.table.page_range_map)
 print()
 # query.table.print_pg()
@@ -47,3 +53,5 @@ for i in r:
 # print(query.delete(2))
 print(query.select_version(2, 0, [1, 1, 1, 1, 1], -4))
 print(query.sum_version(2, 10, 4, -1))
+
+db.close()

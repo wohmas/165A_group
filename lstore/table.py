@@ -28,7 +28,7 @@ class PageGrp:
         self.isDirty = False
         self.num_col = num_col
         self.isPinned = False
-        self.rel_path = "pg_"+self.id+".txt"
+        self.rel_path = f"./{rel_path}/"+self.id+".txt"
         self.pages = self.read_from_file()
 
     def get_id(self):
@@ -278,6 +278,7 @@ class Table:
     def insert(self, values, schema):
         # ask bufferpool for newest base page
         # call has_capacity on page_group
+        print("Current bp_num:" + str(self.bp_num))
         base_page = self.buffer_pool.return_page(self.latest_bp_id)
         base_page.pin()
         # if full, create new base page ID
@@ -285,6 +286,7 @@ class Table:
         if base_page.has_capacity() == False:
             print("in has cap false")
             self.latest_bp_id = self.create_pid("b")
+            # print(self.latest_bp_id)
             base_page.unpin()
             base_page = self.buffer_pool.return_page(self.latest_bp_id)
             base_page.pin()

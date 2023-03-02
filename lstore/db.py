@@ -18,16 +18,18 @@ class Database():
         if os.path.exists(self.path):
             os.chdir(self.path)
             with open("database.txt", "r") as file:
-                print(file.read())
+                contents = file.read()
+                key, value = contents.replace('{', '').replace('}', '').replace("'", '').split(':')
+                print(key, value)
         else:
             os.mkdir(self.path)
             os.chdir(self.path)
 
 
     def close(self):
+        print(self.tables)
         with open("database.txt", "w") as file:
-            
-            file.write(self.tables)
+            file.write(str(self.tables))
         pass
 
     """

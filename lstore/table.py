@@ -101,10 +101,10 @@ class PageGrp:
 
     def update_schema(self, schema, offset):
         return self.pages[-2].update_str(schema, offset)
-    
+
     def pin(self):
         self.isPinned = True
-    
+
     def unpin(self):
         self.isPinned = False
 
@@ -272,8 +272,8 @@ class Table:
         # update page directory and index
         locations = [base_page.get_id(), base_page.num_records() - 1]
         base_page.unpin()
+        self.index.insert(rid, values)
         self.addpd(rid, locations)
-        self.index.insert(rid, values[0])
         return True
 
     def create_rid(self):
@@ -319,9 +319,7 @@ class Table:
             base_record_offset, [1] + [None for i in range(self.num_columns-1)])[0], values)
         tail_page.unpin()
         base_page.unpin()
-        ret = []
-        ret.append(r)
-        return ret
+        return r
 
     def read_record(self, schema, base_val, tail_val):
         values = []
@@ -333,10 +331,17 @@ class Table:
         return values
 
     def read(self, search_key, search_key_index, projected_columns_index, relative_version):
-        base_rid = self.index.locate(search_key_index, search_key)[0]
-        if not self.does_exist(base_rid):
+        base_rids = self.index.locate(search_key_index, search_key)[0]
+        for i in base_rids:
+            if not self.does_exist(i):
+                base_rids.remove(i)
+        if len(base_rids) == 0:
             return False
-        return self.search_rid(base_rid, projected_columns_index, relative_version)
+        records = []
+        for rid in base_rids:
+            records.append(self.search_rid(
+                rid, projected_columns_index, relative_version))
+        return records
 
     def sum(self, start_range, end_range, aggregate_column_index, relative_version):
         bp_rids = self.index.locate_range(start_range, end_range, 0)

@@ -2,13 +2,13 @@ from lstore.db import Database
 from lstore.query import Query
 
 db = Database()
-test_table = db.create_table('test', 5, 0)
+test_table = db.create_table("test", 5, 1)
 
 query = Query(test_table)
 
 # query.insert(6,5)
-query.insert(917225897, 12, 213, 34, 0)
-query.insert(12345, 213, 123, 45, 7)
+query.insert(91, 12, 213, 34, 0)
+query.insert(12, 213, 123, 45, 7)
 query.insert(2, 213, 123, 45, 7)
 query.insert(3, 213, 123, 45, 8)
 query.insert(4, 213, 123, 45, 9)

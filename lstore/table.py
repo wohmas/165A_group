@@ -28,7 +28,7 @@ class PageGrp:
         self.isDirty = False
         self.num_col = num_col
         self.isPinned = False
-        self.rel_path = f"./{rel_path}/"+self.id+".txt"
+        self.rel_path = "./"+self.id+".txt"
         self.pages = self.read_from_file()
 
     def get_id(self):
@@ -48,8 +48,8 @@ class PageGrp:
                 values.append(None)
         return values
 
-    # def get_col_value(self, num, offset):
-    #     return self.pages[num].get_int(offset)
+    def get_col_value(self, col, offset):
+        return self.pages[col].get_int(offset)
 
     def write_to_file(self):
         with open(self.rel_path, "wb") as file:
@@ -75,16 +75,19 @@ class PageGrp:
 
         except:
             # print("file does not exists")
-            page_list = [Page(0, -1) for i in range(self.num_col+2)]
+            page_list = [Page(0, -1) for i in range(self.num_col + 3)]
         return page_list
 
     def print_contents(self, offset):
-        vals = self.get_col_values(offset, [1 for _ in range(self.num_col)])
+        vals = self.get_col_values(offset, [1 for i in range(self.num_col)])
         print(f"columns : {vals}")
         print(f"schema: {self.get_schema(offset)}")
         print(f"indirection: {self.get_indirection(offset)}")
 
     # so table does not directly interact with page objects
+    def get_bp_rid(self, offset):
+        return self.pages[-3].get_int(offset)
+
     def has_capacity(self):
         return self.pages[0].has_capacity()
 
@@ -95,12 +98,14 @@ class PageGrp:
         return self.pages[-1].get_int(offset)
 
     def update_indirection(self, value, offset):
+        self.isDirty = True
         self.pages[-1].update_int(value, offset)
 
     def get_schema(self, offset):
         return self.pages[-2].get_str(offset)
 
     def update_schema(self, schema, offset):
+        self.isDirty = True
         return self.pages[-2].update_str(schema, offset)
 
     def pin(self):
@@ -179,9 +184,9 @@ class Table:
     # now irrelevant because pgroup handles this?
     def get_tail_pg(self, bp_id):
         bp_id = int(bp_id[1:])
-        print("bp_id: ", bp_id)
+        # print("bp_id: ", bp_id)
         grp = math.ceil(bp_id/2)
-        print("grp: ", grp)
+        # print("grp: ", grp)
 
         if grp not in self.page_range_map.keys():
             self.page_range_map[grp] = self.create_pid("t")
@@ -197,8 +202,8 @@ class Table:
             tail_page.unpin()
             tail_page = self.buffer_pool.return_page(tp_id)
             tail_page.pin()
-        print("tp_id: ", tp_id)
-        print("================================")
+        # print("tp_id: ", tp_id)
+        # print("================================")
         return tail_page
 
     def pg_write(self, pg, values):
@@ -213,7 +218,7 @@ class Table:
 
         # use index to get base rid related to key
         # find basepage ID from page directory
-        bp_rid = self.index.locate(0, key)[0][0]
+        bp_rid = self.index.locate(0, key)[0]
         # find basepage ID from page directory
         bp_id = self.page_directory[bp_rid][0]
         base_offset = self.page_directory[bp_rid][1]
@@ -232,8 +237,10 @@ class Table:
 
         # get rid from base indirection column via pagegroup
         indirection = base_page.get_indirection(base_offset)
+        print("bp rid: ", bp_rid, " indirection: ", indirection)
         # update indirection value of base record via pagegroup
         base_page.update_indirection(tp_rid, base_offset)
+
         # generate schema for updated columns
         new_schema = ''.join('0' if val is None else '1' for val in cols)
         # get schema from base record via pagegroup
@@ -246,7 +253,7 @@ class Table:
         # use bufferpool to get corresponding pagegroup object
         last_update_record = self.buffer_pool.return_page(
             last_update_record_id)
-
+        last_update_record.pin()
         # recreate for loop w/ appropiate pagegroup references
         for i in range(0, len(last_schema)):
             projected_index = [None for i in range(self.num_columns)]
@@ -258,11 +265,14 @@ class Table:
 
         # ..go from there
         base_page.update_schema(new_schema, base_offset)
+        print("new schema: ", new_schema)
+        print("updated schema: ", base_page.get_schema(base_offset))
         # hopefully this works
-        tail_page.pg_write([*val, new_schema, indirection])
+        tail_page.pg_write([*val, bp_rid, new_schema, indirection])
         locations = [tail_page.get_id(), tail_page.num_records() - 1]
         tail_page.unpin()
         base_page.unpin()
+        last_update_record.unpin()
         self.addpd(tp_rid, locations)
 
     # STILL NOT UPDATED FOR BUFFERPOOL
@@ -278,13 +288,13 @@ class Table:
     def insert(self, values, schema):
         # ask bufferpool for newest base page
         # call has_capacity on page_group
-        print("Current bp_num:" + str(self.bp_num))
+        # print("Current bp_num:" + str(self.bp_num))
         base_page = self.buffer_pool.return_page(self.latest_bp_id)
         base_page.pin()
         # if full, create new base page ID
         # by requesting the page bufferpool (should) automatically create it
         if base_page.has_capacity() == False:
-            print("in has cap false")
+            # print("in has cap false")
             self.latest_bp_id = self.create_pid("b")
             # print(self.latest_bp_id)
             base_page.unpin()
@@ -293,11 +303,11 @@ class Table:
 
         rid = self.create_rid()
         # write values to base page
-        base_page.pg_write([*values, schema, rid])
+        base_page.pg_write([*values, rid, schema, rid])
         # update page directory and index
         locations = [base_page.get_id(), base_page.num_records() - 1]
         base_page.unpin()
-        self.index.insert(rid, values)
+        self.index.insert_all_existing_index(rid, values)
         self.addpd(rid, locations)
         return True
 
@@ -343,7 +353,7 @@ class Table:
         Schema = tail_page.get_schema(tail_record_offset)
         values = self.read_record(Schema, base_page.get_col_values(
             base_record_offset, projected_columns_index), tail_page.get_col_values(tail_record_offset, projected_columns_index))
-        r = Record(indirect_rid, base_page.get_col_values(
+        r = Record(base_rid, base_page.get_col_values(
             base_record_offset, [1] + [None for i in range(self.num_columns-1)])[0], values)
         tail_page.unpin()
         base_page.unpin()
@@ -359,7 +369,7 @@ class Table:
         return values
 
     def read(self, search_key, search_key_index, projected_columns_index, relative_version):
-        base_rids = self.index.locate(search_key_index, search_key)[0]
+        base_rids = self.index.locate(search_key_index, search_key)
         for i in base_rids:
             if not self.does_exist(i):
                 base_rids.remove(i)
@@ -398,7 +408,7 @@ class Table:
         return False
 
     def delete_rec(self, key):
-        rid = self.index.locate(0, key)[0][0]
+        rid = self.index.locate(0, key)[0]
         if not self.does_exist(rid):
             return False
         rid_page_id = self.page_directory[rid][0]

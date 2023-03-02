@@ -8,27 +8,39 @@ class Index:
 
     def __init__(self, table):
         # One index for each table. All our empty initially.
-        self.indices = [OOBTree() for i in range(table.num_columns)]
+        self.table = table
+        self.indices = [None for i in range(table.num_columns)]
+        self.indices[0] = OOBTree()
 
     # insert new records
     # if key not unique, will overwrite old rid value
-    def insert(self, rid, values):
+    def insert(self, rid, value, col):
+        vals = self.locate(col, value)
+        # if len(vals) != 0:
+        #     vals = vals[0]
+        vals.append(rid)
+        # print("col: ", i, "value: ", value, "vals: ", vals)
+        self.indices[col].update({value: vals})
+
+    def insert_all_existing_index(self, rid, values):
         i = 0
         for value in values:
-            vals = self.locate(i, value)
-            if len(vals) != 0:
-                vals = vals[0]
-            vals.append(rid)
-            # print("col: ", i, "value: ", value, "vals: ", vals)
-            self.indices[i].update({value: vals})
+            if self.indices[i] != None:
+                self.insert(rid, value, i)
             i += 1
-
     """
     # returns the location of all records with the given value on column "column"
     """
 
     def locate(self, column, value):
-        return list(self.indices[column].values(value, value))
+        ret = None
+        if self.indices[column] == None:
+            ret = self.search_db(column, value, value)
+        ret = list(self.indices[column].values(value, value))
+        if len(ret) == 0:
+            return ret
+        print(ret[0])
+        return ret[0]
 
     """
     # Returns the RIDs of all records with values in column "column" between "begin" and "end"
@@ -37,16 +49,53 @@ class Index:
     def locate_range(self, begin, end, column):
         return list(self.indices[column].values(begin, end))
 
+    def search_db(self, column_number, begin, end):
+        bp_no = self.table.bp_num
+        ret = []
+        for bp in range(1, bp_no+1):
+            pg = self.table.buffer_pool.return_page("b"+str(bp))
+            pg.pin()
+            rec_no = pg.num_records()
+            for i in range(rec_no):
+                rid = pg.get_bp_rid(i)
+                val = self.get_latest_val(pg, i, column_number)
+                if val >= begin and val <= end:
+                    ret.append(rid)
+                pg.unpin()
+        return ret
+
+    def get_latest_val(self, pg, offset, column_number):
+        if(pg.get_schema(offset)[column_number] == '0'):
+            return pg.get_col_value(column_number, offset)
+
+        indirection = pg.get_indirection(offset)
+        tail_page_id = self.table.page_directory[indirection][0]
+        tail_record_offset = self.table.page_directory[indirection][1]
+        tail_page = self.table.buffer_pool.return_page(tail_page_id)
+        tail_page.pin()
+        val = tail_page.get_col_value(column_number, tail_record_offset)
+        tail_page.unpin()
+        return val
     """
     # optional: Create index on specific column
     """
 
     def create_index(self, column_number):
-        pass
+        self.indices[column_number] = OOBTree()
+        bp_no = self.table.bp_num
+        for bp in range(1, bp_no+1):
+            pg = self.table.buffer_pool.return_page("b"+str(bp))
+            pg.pin()
+            rec_no = pg.num_records()
+            for i in range(rec_no):
+                rid = pg.get_bp_rid(i)
+                val = self.get_latest_val(pg, i, column_number)
+                pg.unpin()
+                self.insert(rid, val, column_number)
 
     """
     # optional: Drop index of specific column
     """
 
     def drop_index(self, column_number):
-        pass
+        self.indices[column_number] = None

@@ -41,15 +41,17 @@ class Database():
 
     def create_table(self, name, num_columns, key_index):
         # pass path
-        cwd = os.getcwd()
-        table_path = os.path.join(cwd, name)
-        if os.path.exists(table_path):
-            print("Table already exists.")
-            return self.get_table(name)
-        else:
-            table = Table(name, num_columns, key_index)
-            self.tables[name] = table
-            os.mkdir(table_path)
+        table = Table(name, num_columns, key_index)
+
+        # cwd = os.getcwd()
+        # table_path = os.path.join(cwd, name)
+        # if os.path.exists(table_path):
+        #     print("Table already exists.")
+        #     return self.get_table(name)
+        # else:
+        #     table = Table(name, num_columns, key_index)
+        #     self.tables[name] = table
+        #     os.mkdir(table_path)
         return table
 
     """

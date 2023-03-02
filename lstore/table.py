@@ -65,7 +65,7 @@ class PageGrp:
                 r = int.from_bytes(rec_num, "little")
 
                 while True:
-                    bytes = file.read(32)
+                    bytes = file.read(4096)
                     # print(bytes)
                     if not bytes:
                         break
@@ -137,7 +137,7 @@ class BufferPool:
                 break
 
     def add_page(self, id):
-        if self.files_in_mem >= 3:
+        if self.files_in_mem >= 16:
             self.rem_page()
 
         # assuming buffer pool has space
@@ -345,17 +345,23 @@ class Table:
 
     def sum(self, start_range, end_range, aggregate_column_index, relative_version):
         bp_rids = self.index.locate_range(start_range, end_range, 0)
+        rid_list = []
+        for rids in bp_rids:
+            if rids != []:
+                rid_list.append(*rids)
+        bp_rids = rid_list
+        print(bp_rids)
         for i in bp_rids:
             if not self.does_exist(i):
                 bp_rids.remove(i)
 
-        projected_col_index = [0]*self.num_columns
+        projected_col_index = [None]*self.num_columns
         projected_col_index[aggregate_column_index] = 1
         # Could increment records starting at 0
         records = []
         for rid in bp_rids:
-            records.append(self.search_rid(rid, projected_col_index, relative_version)[
-                           0].columns[aggregate_column_index])
+            records.append(self.search_rid(rid, projected_col_index,
+                           relative_version).columns[aggregate_column_index])
         return sum(records)
 
     def does_exist(self, rid):

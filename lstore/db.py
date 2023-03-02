@@ -12,7 +12,7 @@ class Database():
     def open(self, path):
         cwd = os.getcwd()
         self.path = os.path.join(cwd, path)
-        os.mkdir(path)
+        os.mkdir(self.path)
         pass
 
     def close(self):

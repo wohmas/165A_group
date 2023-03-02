@@ -28,6 +28,6 @@ query.table.print_pg()
 r = query.select_version(7, 4, [1, 1, 1, 1, 1], 0)
 for i in r:
     i.print_record()
-print(query.delete(2))
+# print(query.delete(2))
 print(query.select_version(2, 0, [1, 1, 1, 1, 1], -4))
-# print(query.sum_version(2, 4, 4, 0))
+print(query.sum_version(2, 10, 4, -1))

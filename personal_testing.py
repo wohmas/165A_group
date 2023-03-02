@@ -11,20 +11,36 @@ query.insert(91, 12, 213, 34, 0)
 query.insert(12, 213, 123, 45, 7)
 query.insert(2, 213, 123, 45, 7)
 query.insert(3, 213, 123, 45, 8)
+
 query.insert(4, 213, 123, 45, 9)
 query.insert(15, 213, 123, 45, 7)
+query.insert(16, 213, 123, 45, 7)
+query.insert(17, 213, 123, 45, 7)
+
+query.insert(18, 213, 123, 45, 7)
+query.insert(19, 213, 123, 45, 7)
+query.insert(20, 213, 123, 45, 7)
+
 
 query.update(2, *[None, None, 15, 3, None])
 query.update(3, *[None, None, 15, 3, None])
-query.update(2, *[None, 1, None, 4, None])
-query.update(2, *[None, 1, None, 4, 30])
 query.update(15, *[None, 1, None, 4, None])
+
+
+query.update(20, *[None, None, 68, 68, 68])
+
+query.update(2, *[None, 1, None, 4, None])
+
+query.update(2, *[None, 1, None, 4, 30])
 query.update(15, *[None, None, None, None, None])
 query.update(15, *[None, None, 68, 68, 68])
 
 # query.table.print_pg()
 # print(query.table.index.locate_range(2, 4, 0))
-query.table.print_pg()
+print("page_range:\n", query.table.page_range_map)
+print()
+# query.table.print_pg()
+
 r = query.select_version(7, 4, [1, 1, 1, 1, 1], 0)
 for i in r:
     i.print_record()

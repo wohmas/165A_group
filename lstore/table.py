@@ -2,6 +2,7 @@ from lstore.index import Index
 from time import time
 from lstore.page import Page
 import os
+import math
 
 INDIRECTION_COLUMN = 0
 RID_COLUMN = 1
@@ -27,7 +28,7 @@ class PageGrp:
         self.isDirty = False
         self.num_col = num_col
         self.isPinned = False
-        self.rel_path = "pg_"+str(self.id)+".txt"
+        self.rel_path = "pg_"+self.id+".txt"
         self.pages = self.read_from_file()
 
     def get_id(self):
@@ -65,7 +66,7 @@ class PageGrp:
                 r = int.from_bytes(rec_num, "little")
 
                 while True:
-                    bytes = file.read(4096)
+                    bytes = file.read(32)
                     # print(bytes)
                     if not bytes:
                         break
@@ -73,7 +74,7 @@ class PageGrp:
                     # print("================================")
 
         except:
-            print("file does not exists")
+            # print("file does not exists")
             page_list = [Page(0, -1) for i in range(self.num_col+2)]
         return page_list
 
@@ -122,7 +123,7 @@ class BufferPool:
     def rem_page(self):
         # currently assumes no scenario where all pages are pinned
         # in milestone 3 this assumption will not hold and we will need more conditions
-        print("in rem")
+        # print("in rem")
         for id in self.pages_in_mem.keys():
             if self.pages_in_mem[id].isDirty == False and self.pages_in_mem[id].isPinned == False:
                 del self.pages_in_mem[id]
@@ -137,7 +138,7 @@ class BufferPool:
                 break
 
     def add_page(self, id):
-        if self.files_in_mem >= 16:
+        if self.files_in_mem >= 3:
             self.rem_page()
 
         # assuming buffer pool has space
@@ -168,12 +169,37 @@ class Table:
         self.page_directory = {}
         self.nums = 0
         self.page_num = 0
-        self.latest_bp_id = self.create_pid()
-        self.latest_tp_id = self.create_pid()
+        self.page_range_map = {}
+        self.bp_num = 0
+        self.tp_num = 0
+        self.latest_bp_id = self.create_pid("b")
         self.index = Index(self)
         self.buffer_pool = BufferPool(name, num_columns)
 
     # now irrelevant because pgroup handles this?
+    def get_tail_pg(self, bp_id):
+        bp_id = int(bp_id[1:])
+        print("bp_id: ", bp_id)
+        grp = math.ceil(bp_id/2)
+        print("grp: ", grp)
+
+        if grp not in self.page_range_map.keys():
+            self.page_range_map[grp] = self.create_pid("t")
+        tp_id = self.page_range_map[grp]
+        tail_page = self.buffer_pool.return_page(tp_id)
+        tail_page.pin()
+        # if full, create new tail page ID
+        # by requesting the page bufferpool (should) automatically create it
+        if tail_page.has_capacity() == False:
+
+            tp_id = self.create_pid("t")
+            self.page_range_map[grp] = tp_id
+            tail_page.unpin()
+            tail_page = self.buffer_pool.return_page(tp_id)
+            tail_page.pin()
+        print("tp_id: ", tp_id)
+        print("================================")
+        return tail_page
 
     def pg_write(self, pg, values):
         for i in range(len(pg)):
@@ -184,20 +210,7 @@ class Table:
         self.page_directory[rid] = locations
 
     def update(self, key, cols):
-        # ask bufferpool for latest tail page
-        tail_page = self.buffer_pool.return_page(self.latest_tp_id)
-        tail_page.pin()
 
-        # if full, create new tail page ID
-        # by requesting the page bufferpool (should) automatically create it
-        if tail_page.has_capacity() == False:
-
-            self.latest_tp_id = self.create_pid()
-            tail_page.unpin()
-            tail_page = self.buffer_pool.return_page(self.latest_tp_id)
-            tail_page.pin()
-
-        tp_rid = self.create_rid()
         # use index to get base rid related to key
         # find basepage ID from page directory
         bp_rid = self.index.locate(0, key)[0][0]
@@ -207,6 +220,16 @@ class Table:
         # get basepage from bufferpool using ID
         base_page = self.buffer_pool.return_page(bp_id)
         base_page.pin()
+
+        # ask bufferpool for latest tail page
+        tail_page = self.get_tail_pg(bp_id)
+        tail_page.pin()
+
+        # if full, create new tail page ID
+        # by requesting the page bufferpool (should) automatically create it
+
+        tp_rid = self.create_rid()
+
         # get rid from base indirection column via pagegroup
         indirection = base_page.get_indirection(base_offset)
         # update indirection value of base record via pagegroup
@@ -261,7 +284,7 @@ class Table:
         # by requesting the page bufferpool (should) automatically create it
         if base_page.has_capacity() == False:
             print("in has cap false")
-            self.latest_bp_id = self.create_pid()
+            self.latest_bp_id = self.create_pid("b")
             base_page.unpin()
             base_page = self.buffer_pool.return_page(self.latest_bp_id)
             base_page.pin()
@@ -280,9 +303,12 @@ class Table:
         self.nums += 1
         return self.nums
 
-    def create_pid(self):
-        self.page_num += 1
-        return self.page_num
+    def create_pid(self, type):
+        if type == "b":
+            self.bp_num += 1
+            return "b"+str(self.bp_num)
+        self.tp_num += 1
+        return "t"+str(self.tp_num)
 
     # only for primary keys for now
     def search_rid(self, base_rid, projected_columns_index, relative_version):

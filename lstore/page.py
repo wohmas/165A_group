@@ -7,14 +7,14 @@ class Page:
         
     def get_data(self, data):
         if data == -1:
-            return bytearray(4096)
+            return bytearray(32)
         else:
             return bytearray(data)
     
     def getAll(self):
         return self.data
     def has_capacity(self):
-        return (self.num_records < 512)
+        return (self.num_records < 4)
     
     def get_int(self, rec_num):
         num_bytes = self.data[rec_num*8:rec_num*8+8]

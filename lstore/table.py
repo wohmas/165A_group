@@ -200,7 +200,7 @@ class Table:
         tp_rid = self.create_rid()
         # use index to get base rid related to key
         # find basepage ID from page directory
-        bp_rid = self.index.locate(0, key)[0]
+        bp_rid = self.index.locate(0, key)[0][0]
         # find basepage ID from page directory
         bp_id = self.page_directory[bp_rid][0]
         base_offset = self.page_directory[bp_rid][1]
@@ -364,7 +364,7 @@ class Table:
         return False
 
     def delete_rec(self, key):
-        rid = self.index.locate(0, key)[0]
+        rid = self.index.locate(0, key)[0][0]
         if not self.does_exist(rid):
             return False
         rid_page_id = self.page_directory[rid][0]

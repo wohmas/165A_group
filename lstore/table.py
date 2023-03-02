@@ -215,6 +215,8 @@ class Table:
         self.page_directory[rid] = locations
 
     def update(self, key, cols):
+        # if self.index.locate(0, key) != []:
+        #     return
 
         # use index to get base rid related to key
         # find basepage ID from page directory
@@ -225,6 +227,17 @@ class Table:
         # get basepage from bufferpool using ID
         base_page = self.buffer_pool.return_page(bp_id)
         base_page.pin()
+
+        # generate schema for updated columns
+        if cols[0] != None:
+            if self.index.locate(0, cols[0]) != []:
+                return
+        new_schema = ''.join('0' if val is None else '1' for val in cols)
+        for i in range(0, len(new_schema)):
+            if new_schema[i] == '1':
+                val = self.index.get_latest_val(base_page, base_offset, i)
+                self.index.remove(i, bp_rid, val)
+                self.index.insert(bp_rid, cols[i], i)
 
         # ask bufferpool for latest tail page
         tail_page = self.get_tail_pg(bp_id)
@@ -239,11 +252,10 @@ class Table:
         indirection = base_page.get_indirection(base_offset)
         print("bp rid: ", bp_rid, " indirection: ", indirection)
         # update indirection value of base record via pagegroup
+
+        # get schema from base record via pagegroup
         base_page.update_indirection(tp_rid, base_offset)
 
-        # generate schema for updated columns
-        new_schema = ''.join('0' if val is None else '1' for val in cols)
-        # get schema from base record via pagegroup
         last_schema = base_page.get_schema(base_offset)
         # Make input cols mutable
         val = list(cols)
@@ -286,6 +298,8 @@ class Table:
             print("======================================================")
 
     def insert(self, values, schema):
+        if self.index.locate(0, values[0]) != []:
+            return
         # ask bufferpool for newest base page
         # call has_capacity on page_group
         # print("Current bp_num:" + str(self.bp_num))
@@ -353,8 +367,7 @@ class Table:
         Schema = tail_page.get_schema(tail_record_offset)
         values = self.read_record(Schema, base_page.get_col_values(
             base_record_offset, projected_columns_index), tail_page.get_col_values(tail_record_offset, projected_columns_index))
-        r = Record(base_rid, base_page.get_col_values(
-            base_record_offset, [1] + [None for i in range(self.num_columns-1)])[0], values)
+        r = Record(base_rid, values[0], values)
         tail_page.unpin()
         base_page.unpin()
         return r
@@ -417,6 +430,7 @@ class Table:
         rid_page.pin()
         rid_page.update_indirection(0, rid_record_offset)
         rid_page.unpin()
+        self.index.remove(0, rid, key)
         self.page_directory.pop(rid)
         return True
 

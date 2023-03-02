@@ -15,6 +15,8 @@ class Index:
     # insert new records
     # if key not unique, will overwrite old rid value
     def insert(self, rid, value, col):
+        if self.indices[col] == None:
+            return
         vals = self.locate(col, value)
         vals.append(rid)
         # print("col: ", i, "value: ", value, "vals: ", vals)
@@ -34,7 +36,7 @@ class Index:
         ret = None
         if self.indices[column] == None:
             return self.search_db(column, value, value)
-        
+
         ret = list(self.indices[column].values(value, value))
         if len(ret) == 0:
             return ret
@@ -49,7 +51,7 @@ class Index:
         ret = None
         if self.indices[column] == None:
             return self.search_db(column, begin, end)
-        bp_rids= list(self.indices[column].values(begin, end))
+        bp_rids = list(self.indices[column].values(begin, end))
         ret = []
         for rids in bp_rids:
             if rids != []:
@@ -101,6 +103,10 @@ class Index:
                 pg.unpin()
                 self.insert(rid, val, column_number)
 
+    def remove(self, column, rid, value):
+        if self.indices[column] == None:
+            return
+        self.indices[column].get(value).remove(rid)
     """
     # optional: Drop index of specific column
     """

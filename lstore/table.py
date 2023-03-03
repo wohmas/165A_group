@@ -28,7 +28,7 @@ class PageGrp:
         self.isDirty = False
         self.num_col = num_col
         self.isPinned = False
-        self.rel_path = f'./{self.rel_path}/{self.id}.txt'
+        self.rel_path = f'./{rel_path}/{self.id}.txt'
         self.pages = self.read_from_file()
 
     def get_id(self):
@@ -66,7 +66,7 @@ class PageGrp:
                 r = int.from_bytes(rec_num, "little")
 
                 while True:
-                    bytes = file.read(32)
+                    bytes = file.read(4096)
                     # print(bytes)
                     if not bytes:
                         break
@@ -143,7 +143,7 @@ class BufferPool:
                 break
 
     def add_page(self, id):
-        if self.files_in_mem >= 3:
+        if self.files_in_mem >= 16:
             self.rem_page()
 
         # assuming buffer pool has space
@@ -156,6 +156,11 @@ class BufferPool:
             self.add_page(id)
 
         return self.pages_in_mem.get(id)
+    
+    def flush(self):
+        for id in self.pages_in_mem.keys():
+            if self.pages_in_mem[id].isDirty == True:
+                self.pages_in_mem[id].write_to_file()
 
 
 class Table:
@@ -178,8 +183,28 @@ class Table:
         self.bp_num = 0
         self.tp_num = 0
         self.latest_bp_id = self.create_pid("b")
-        self.index = Index(self)
         self.buffer_pool = BufferPool(name, num_columns)
+        self.index = Index(self)
+
+    def create_table(self, page_directory, nums, page_num, page_range_map, bp_num, tp_num):
+        pg_dir = {}
+        for key in page_directory.keys():
+            pg_dir[int(key)] = page_directory[key]
+        
+        pg_range = {}
+        for key in page_range_map.keys():
+            pg_range[int(key)] = page_range_map[key]
+
+        self.page_directory = pg_dir
+        self.nums = nums
+        self.page_num = page_num
+        self.page_range_map = pg_range
+        self.bp_num = bp_num
+        self.tp_num = tp_num
+
+
+    def flush_bp(self):
+        self.buffer_pool.flush()
 
     # now irrelevant because pgroup handles this?
     def get_tail_pg(self, bp_id):
@@ -385,8 +410,8 @@ class Table:
         for i in base_rids:
             if not self.does_exist(i):
                 base_rids.remove(i)
-        if len(base_rids) == 0:
-            return False
+        #if len(base_rids) == 0:
+        #    return False
         records = []
         for rid in base_rids:
             records.append(self.search_rid(

@@ -106,6 +106,7 @@ class Index:
     def remove(self, column, rid, value):
         if self.indices[column] == None:
             return
+        # print(self.indices[column])
         self.indices[column].get(value).remove(rid)
     """
     # optional: Drop index of specific column

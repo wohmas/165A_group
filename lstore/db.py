@@ -29,15 +29,14 @@ class Database():
             os.mkdir(self.path)
             os.chdir(self.path)
 
-
     def close(self):
         print(self.tables)
-        #write database metadata to file (table names)
+        # write database metadata to file (table names)
         with open("database.txt", "w") as file:
             file.write(json.dumps(self.table_names))
             print(json.dumps(self.table_names))
 
-        #write table metadata to file (all table attributes)
+        # write table metadata to file (all table attributes)
         for table in self.tables.values():
             table_attributes = []
             table_attributes.append(table.name)
@@ -51,7 +50,7 @@ class Database():
             table_attributes.append(table.tp_num)
             print(table_attributes)
             with open(table.name+".txt", "w") as file:
-                file.write(table_attributes) 
+                file.write(table_attributes)
 
         pass
 
@@ -66,12 +65,13 @@ class Database():
         # pass path
 
         cwd = os.getcwd()
+        table = Table(name, num_columns, key_index)
+
         table_path = os.path.join(cwd, name)
         if os.path.exists(table_path):
             print("Table already exists.")
             return self.get_table(name)
         else:
-            table = Table(name, num_columns, key_index)
             self.tables[name] = table
             self.table_names.append(name)
             os.mkdir(table_path)

@@ -210,7 +210,7 @@ class Table:
     def get_tail_pg(self, bp_id):
         bp_id = int(bp_id[1:])
         # print("bp_id: ", bp_id)
-        grp = math.ceil(bp_id/2)
+        grp = math.ceil(bp_id/10)
         # print("grp: ", grp)
 
         if grp not in self.page_range_map.keys():
@@ -458,18 +458,73 @@ class Table:
         self.page_directory.pop(rid)
         return True
 
+    # Helper functions to be used with merge
+    def merge_latest_val(self, pg, offset, column_number):
+        if(pg.get_schema(offset)[column_number] == '0'):
+            return pg.get_col_value(column_number, offset)
+        indirection = pg.get_indirection(offset)
+        tail_page_id = self.page_directory[indirection][0]
+        tail_record_offset = self.page_directory[indirection][1]
+        tail_page = PageGrp(tail_page_id, self.name, column_number)
+        val = tail_page.get_col_value(column_number, tail_record_offset)
+        return val
+
+    def get_tps(self, tp_id):
+        tail_page = PageGrp(tp_id, self.name, self.num_columns)
+        bp_rid = tail_page.get_bp_rid(tail_page.num_records()-1)
+        bp = self.page_directory[bp_rid][0]
+        base_page = PageGrp(bp, self.name, self.num_columns)
+        return base_page.get_indirection(self.page_directory[bp_rid][1])
+
+    '''We were unable to get merge to function without throwing errors with the 
+       file writing system. Below is the skeleton code that we worked on that
+       holds the idea of how we tried to implement it. To be working by next milestone.'''
     def __merge(self):
-       # Variables that will need to be changed once other code is structured
-        folder_path = ''
-        page_id = 0
-        with os.listdir(folder_path) as folder:
-            for file in folder:  # loop to get all page groups written
-                conslidated = PageGrp()  # New page group for consolidated records
-                # get each record from file through offsets
-                for offset in range(file.pages[0].num_records):
-                    # get all values from record at offest
-                    values = file.get_col_values(offset, [1]*len(file))
-                    # Should actually be .select()
-                    conslidated.pg_write(values)  # write to new page group
-                    # add to page directory
-                    self.page_directory[page_id] = conslidated
+        merged_schema = '0' * self.num_columns
+        if self.last_merged_grp >= len(self.page_range_map.keys()):
+            self.last_merged_grp = 1
+        else:
+            self.last_merged_grp += 1
+
+        tp_ids = self.page_range_map[1]
+        updated_rids = {}
+        count = (self.last_merged_grp - 1) * 2 + 1
+        consolidated = PageGrp("b"+str(self.merge_count) +
+                               "_"+str(count), self.name, self.num_columns)
+        cons_rec = 0
+        tps = self.get_tps(tp_ids[-1])
+
+        consolidated.set_tps(tps)
+        for tp_id in tp_ids[::-1]:
+            tail_page = PageGrp(tp_id, self.name, self.num_columns)
+
+            for i in range(tail_page.num_records()-1, -1, -1):
+                bp_rid = tail_page.get_bp_rid(i)
+                if bp_rid in updated_rids.keys():
+                    continue
+                # updated_rids.append(bp_rid)
+                bp = self.page_directory[bp_rid][0]
+                base_offset = self.page_directory[bp_rid][1]
+                base_page = PageGrp(bp, self.name, self.num_columns)
+                values = []
+                for col in range(self.num_columns):
+                    values.append(self.merge_latest_val(
+                        base_page, i, col))
+                if not consolidated.has_capacity():
+                    count += 1
+                    cons_rec = 0
+                    consolidated.write_to_file()
+                    consolidated = PageGrp(
+                        "b"+str(self.merge_count)+"_"+str(count), self.name, self.num_columns)
+                    consolidated.set_tps(tps)
+
+                consolidated.pg_write(
+                    [*values, bp_rid, merged_schema, base_page.get_indirection(base_offset)])
+                cons_rec += 1
+
+                updated_rids[bp_rid] = [
+                    "b"+str(self.merge_count)+"_"+str(count), cons_rec]
+
+        consolidated.write_to_file()
+        for rid in updated_rids.keys():
+            self.addpd(rid, updated_rids[rid])

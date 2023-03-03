@@ -28,7 +28,7 @@ class PageGrp:
         self.isDirty = False
         self.num_col = num_col
         self.isPinned = False
-        self.rel_path = "./"+self.id+".txt"
+        self.rel_path = f'./{self.rel_path}/{self.id}.txt'
         self.pages = self.read_from_file()
 
     def get_id(self):

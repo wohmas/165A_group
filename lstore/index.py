@@ -10,7 +10,7 @@ class Index:
         # One index for each table. All our empty initially.
         self.table = table
         self.indices = [None for i in range(table.num_columns)]
-        self.indices[0] = self.create_index(0)
+        # self.indices[0] = self.create_index(0)
 
     # insert new records
     # if key not unique, will overwrite old rid value

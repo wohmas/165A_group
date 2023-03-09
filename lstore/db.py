@@ -2,6 +2,7 @@ from lstore.table import Table
 import os
 import json
 
+
 class Database():
 
     def __init__(self):
@@ -22,39 +23,48 @@ class Database():
                 with open(self.table_names[i]+".txt", "r") as file:
                     table_attributes = []
                     table_attributes = json.loads(file.read())
-                    name = self.table_names[i] 
-                    name = Table(table_attributes[0], table_attributes[2], table_attributes[1])
-                    name.create_table(table_attributes[3], table_attributes[4], table_attributes[5], 
-                                      table_attributes[6], table_attributes[7], table_attributes[8])
+                    #########
+                    name = self.table_names[i]
+                    pg_dir = {}
+                    for key in table_attributes[3].keys():
+                        pg_dir[int(key)] = table_attributes[3][key]
+
+                    pg_range = {}
+                    for key in table_attributes[7].keys():
+                        pg_range[int(key)] = table_attributes[7][key]
+
+                    print("pg directory:\n", table_attributes[3])
+                    name = Table(name=table_attributes[0], num_columns=table_attributes[1], key=table_attributes[2],
+                                 page_directory=pg_dir, nums=table_attributes[
+                                     4], tids=table_attributes[5], page_num=table_attributes[6],
+                                 page_range_map=pg_range, bp_num=table_attributes[8], tp_num=table_attributes[9])
                     self.tables[self.table_names[i]] = name
-                    
+
         else:
             os.mkdir(self.path)
             os.chdir(self.path)
 
-
     def close(self):
-        #write database metadata to file (table names)
+        # write database metadata to file (table names)
         with open("database.txt", "w") as file:
             file.write(json.dumps(self.table_names))
 
-        #write table metadata to file (all table attributes)
+        # write table metadata to file (all table attributes)
         for table in self.tables.values():
             table.flush_bp()
             table_attributes = []
             table_attributes.append(table.name)
-            table_attributes.append(table.key)
             table_attributes.append(table.num_columns)
+            table_attributes.append(table.key)
             table_attributes.append(table.page_directory)
-            table_attributes.append(table.nums)
+            table_attributes.append(table.rids)
+            table_attributes.append(table.tids)
             table_attributes.append(table.page_num)
             table_attributes.append(table.page_range_map)
             table_attributes.append(table.bp_num)
             table_attributes.append(table.tp_num)
             with open(table.name+".txt", "w") as file:
                 file.write(json.dumps(table_attributes))
-
-        
 
     """
     # Creates a new table
@@ -83,22 +93,21 @@ class Database():
 
     def drop_table(self, name):
         if self.tables.get(name) == None:
-            print("Table does not exist") 
-        else:     
+            print("Table does not exist")
+        else:
             del self.tables[name]
             self.table_names.remove(name)
 
             cwd = os.getcwd()
             table_path = os.path.join(cwd, name)
             os.remove(table_path)
-    
 
     """
     # Returns table with the passed name
     """
 
     def get_table(self, name):
-        if self.tables.get(name) == None:  
-            print("Table does not exist")    
-        else:      
+        if self.tables.get(name) == None:
+            print("Table does not exist")
+        else:
             return self.tables[name]

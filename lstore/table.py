@@ -3,6 +3,7 @@ from time import time
 from lstore.page import Page
 import os
 import math
+import copy
 
 INDIRECTION_COLUMN = 0
 RID_COLUMN = 1
@@ -458,13 +459,31 @@ class Table:
         base_page = PageGrp(bp, self.name, self.num_columns)
         return base_page.get_indirection(self.page_directory[bp_rid][1])
 
+    def get_bp_copies(self, page_group):
+        start = 1
+        copies = []
+        for i in range(start, start+10):
+            bp = None
+            id = "bp_"+str(i)
+            if id in self.buffer_pool.keys():
+                bp = copy.deepcopy(self.buffer_pool[id])
+            else:
+                bp = copy.deepcopy(PageGrp(id, self.name, self.num_columns))
+            bp.id = "bm1_"+str(i)
+            copies.append(bp)
+        return copies
+
     '''We were unable to get merge to function without throwing errors with the 
        file writing system. Below is the skeleton code that we worked on that
        holds the idea of how we tried to implement it. To be working by next milestone.'''
 
     def __merge(self):
 
-        pass
+        merge_group = 1
+        new_basepages = self.get_bp_copies(merge_group)
+
+        for page in new_basepages:
+            pass
 
         # merged_schema = '0' * self.num_columns
         # if self.last_merged_grp >= len(self.page_range_map.keys()):

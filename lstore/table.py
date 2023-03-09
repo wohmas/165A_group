@@ -170,7 +170,7 @@ class Table:
     """
 
     def __init__(self, name, num_columns, key,
-                    page_directory = {}, nums = 0, tids = 2**64, page_num = 0, page_range_map = {}, bp_num = 0, tp_num = 0):
+                 page_directory={}, nums=0, tids=2**64, page_num=0, page_range_map={}, bp_num=0, tp_num=0):
         # recieve database path, create tail page path by appending name to it
         self.name = name
         self.key = key
@@ -185,22 +185,6 @@ class Table:
         self.latest_bp_id = self.create_pid("b")
         self.buffer_pool = BufferPool(name, num_columns)
         self.index = Index(self)
-
-    def create_table(self, page_directory, nums, page_num, page_range_map, bp_num, tp_num):
-        pg_dir = {}
-        for key in page_directory.keys():
-            pg_dir[int(key)] = page_directory[key]
-
-        pg_range = {}
-        for key in page_range_map.keys():
-            pg_range[int(key)] = page_range_map[key]
-
-        self.page_directory = pg_dir
-        self.rids = nums
-        self.page_num = page_num
-        self.page_range_map = pg_range
-        self.bp_num = bp_num
-        self.tp_num = tp_num
 
     def flush_bp(self):
         self.buffer_pool.flush()

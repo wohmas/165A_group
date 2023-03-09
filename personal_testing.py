@@ -32,7 +32,13 @@ query.update(15, *[None, None, None, None, None])
 query.update(15, *[None, None, 68, 68, 68])
 
 query.table.print_pg()
-
+r = query.select_version(7, 4, [1, 1, 1, 1, 1], 0)
+for i in r:
+    i.print_record()
+print()
+print("merged")
+query.table.merge()
+query.table.print_pg()
 
 r = query.select_version(7, 4, [1, 1, 1, 1, 1], 0)
 for i in r:

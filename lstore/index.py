@@ -10,7 +10,7 @@ class Index:
         # One index for each table. All our empty initially.
         self.table = table
         self.indices = [None for i in range(table.num_columns)]
-        # self.indices[0] = self.create_index(0)
+        self.indices[0] = self.create_index(0)
 
     # insert new records
     # if key not unique, will overwrite old rid value
@@ -38,9 +38,9 @@ class Index:
             return self.search_db(column, value, value)
 
         ret = list(self.indices[column].values(value, value))
+
         if len(ret) == 0:
             return ret
-        # print(ret[0])
         return ret[0]
 
     """
@@ -63,7 +63,7 @@ class Index:
         bp_no = self.table.bp_num
         ret = []
         for bp in range(1, bp_no+1):
-            pg = self.table.buffer_pool.return_page("b"+str(bp))
+            pg = self.table.buffer_pool.return_page("b_"+str(bp))
             pg.pin()
             rec_no = pg.num_records()
             for i in range(rec_no):
@@ -95,7 +95,7 @@ class Index:
         self.indices[column_number] = OOBTree()
         bp_no = self.table.bp_num
         for bp in range(1, bp_no+1):
-            pg = self.table.buffer_pool.return_page("b"+str(bp))
+            pg = self.table.buffer_pool.return_page("b_"+str(bp))
             pg.pin()
             rec_no = pg.num_records()
             for i in range(rec_no):

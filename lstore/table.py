@@ -29,6 +29,7 @@ class PageGrp:
         self.isDirty = False
         self.num_col = num_col
         self.isPinned = False
+        self.dir = rel_path
         self.rel_path = f'./{rel_path}/{self.id}.txt'
         self.pages = self.read_from_file()
         self.tps = 0
@@ -57,6 +58,8 @@ class PageGrp:
         with open(self.rel_path, "wb") as file:
             rec_num = self.pages[0].num_records.to_bytes(8, "little")
             file.write(rec_num)
+            tps = self.tps.to_bytes(8, "little")
+            file.write(tps)
             for page in self.pages:
                 file.write(page.getAll())
 
@@ -66,7 +69,8 @@ class PageGrp:
             with open(self.rel_path, "rb") as file:
                 rec_num = file.read(8)
                 r = int.from_bytes(rec_num, "little")
-
+                tps = file.read(8)
+                self.tps = int.from_bytes(tps, "little")
                 while True:
                     bytes = file.read(4096)
                     if not bytes:
@@ -81,6 +85,7 @@ class PageGrp:
     def print_contents(self, offset):
         vals = self.get_col_values(offset, [1 for i in range(self.num_col)])
         print(f"columns : {vals}")
+        print(f"rid: {self.get_bp_rid(offset)}")
         print(f"schema: {self.get_schema(offset)}")
         print(f"indirection: {self.get_indirection(offset)}")
 
@@ -191,7 +196,7 @@ class Table:
         self.buffer_pool.flush()
 
     def get_tail_pg(self, bp_id):
-        bp_id = int(bp_id[1:])
+        bp_id = int(bp_id.split("_")[1])
         grp = math.ceil(bp_id/10)
         # print("grp: ", grp)
 
@@ -224,7 +229,6 @@ class Table:
     def update(self, key, cols):
         # if self.index.locate(0, key) != []:
         #     return
-
         # use index to get base rid related to key
         # find basepage ID from page directory
         bp_rid = self.index.locate(0, key)[0]
@@ -339,7 +343,7 @@ class Table:
     def create_pid(self, type):
         if type == "b":
             self.bp_num += 1
-            return "b"+str(self.bp_num)
+            return "b_"+str(self.bp_num)
         self.tp_num += 1
         return "t"+str(self.tp_num)
 
@@ -443,12 +447,18 @@ class Table:
 
     # Helper functions to be used with merge
     def merge_latest_val(self, pg, offset, column_number):
-        if(pg.get_schema(offset)[column_number] == '0'):
-            return pg.get_col_value(column_number, offset)
+        if pg.get_schema(offset)[column_number] == '0':
+            ret = pg.get_col_value(column_number, offset)
+            return ret
+
         indirection = pg.get_indirection(offset)
         tail_page_id = self.page_directory[indirection][0]
         tail_record_offset = self.page_directory[indirection][1]
-        tail_page = PageGrp(tail_page_id, self.name, column_number)
+        tail_page = None
+        if tail_page_id in self.buffer_pool.pages_in_mem.keys():
+            tail_page = self.buffer_pool.pages_in_mem[tail_page_id]
+        else:
+            tail_page = PageGrp(tail_page_id, self.name, self.num_columns)
         val = tail_page.get_col_value(column_number, tail_record_offset)
         return val
 
@@ -460,16 +470,18 @@ class Table:
         return base_page.get_indirection(self.page_directory[bp_rid][1])
 
     def get_bp_copies(self, page_group):
-        start = 1
+        start = page_group
         copies = []
-        for i in range(start, start+10):
+        for i in range(start, min(start+10, self.bp_num)+1):
             bp = None
-            id = "bp_"+str(i)
-            if id in self.buffer_pool.keys():
-                bp = copy.deepcopy(self.buffer_pool[id])
+            id = "b_"+str(i)
+            if id in self.buffer_pool.pages_in_mem.keys():
+                bp = copy.deepcopy(self.buffer_pool.pages_in_mem[id])
             else:
                 bp = copy.deepcopy(PageGrp(id, self.name, self.num_columns))
             bp.id = "bm1_"+str(i)
+            bp.rel_path = f'./{self.name}/{bp.id}.txt'
+
             copies.append(bp)
         return copies
 
@@ -477,14 +489,35 @@ class Table:
        file writing system. Below is the skeleton code that we worked on that
        holds the idea of how we tried to implement it. To be working by next milestone.'''
 
-    def __merge(self):
+    def merge(self):
 
         merge_group = 1
         new_basepages = self.get_bp_copies(merge_group)
 
+        tps = 2**64-1
+        update_dict = {}
         for page in new_basepages:
-            pass
+            for i in range(page.num_records()):
+                rid = page.get_bp_rid(i)
+                for j in range(self.num_columns):
+                    value = self.merge_latest_val(page, i, j)
+                    page.pages[j].update_int(value, i)
+                page.update_schema('0' * self.num_columns, i)
+                page.update_indirection(rid, i)
+                tid = page.get_indirection(i)
+                if tid < tps:
+                    tps = tid
+                # page.pg_write([*val, rid, '0' * self.num_columns, rid])
+                update_dict[rid] = [page.id, i]
+        for page in new_basepages:
+            page.tps = tps
+            # for i in range(page.num_records()):
+            #     page.print_contents(i)
+            page.write_to_file()
 
+        for rid in update_dict.keys():
+            self.page_directory.update({rid: update_dict[rid]})
+            # self.addpd(rid, update_dict[rid])
         # merged_schema = '0' * self.num_columns
         # if self.last_merged_grp >= len(self.page_range_map.keys()):
         #     self.last_merged_grp = 1

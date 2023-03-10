@@ -37,7 +37,7 @@ class Database():
                     name = Table(name=table_attributes[0], num_columns=table_attributes[1], key=table_attributes[2],
                                  page_directory=pg_dir, nums=table_attributes[
                                      4], tids=table_attributes[5], page_num=table_attributes[6],
-                                 page_range_map=pg_range, bp_num=table_attributes[8], tp_num=table_attributes[9])
+                                 page_range_map=pg_range, bp_num=table_attributes[8], tp_num=table_attributes[9], merge_count=table_attributes[10])
                     self.tables[self.table_names[i]] = name
 
         else:
@@ -63,6 +63,8 @@ class Database():
             table_attributes.append(table.page_range_map)
             table_attributes.append(table.bp_num)
             table_attributes.append(table.tp_num)
+            table_attributes.append(table.merge_count)
+
             with open(table.name+".txt", "w") as file:
                 file.write(json.dumps(table_attributes))
 

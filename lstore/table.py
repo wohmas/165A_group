@@ -2,6 +2,7 @@ from lstore.index import Index
 from time import time
 from lstore.page import Page
 import os
+import threading
 import math
 import copy
 
@@ -79,7 +80,7 @@ class PageGrp:
 
         except:
             # print("file does not exists")
-            page_list = [Page(0, -1) for i in range(self.num_col + 3)]
+            page_list = [Page(0, -1) for i in range(self.num_col + 4)]
         return page_list
 
     def print_contents(self, offset):
@@ -88,6 +89,9 @@ class PageGrp:
         print(f"rid: {self.get_bp_rid(offset)}")
         print(f"schema: {self.get_schema(offset)}")
         print(f"indirection: {self.get_indirection(offset)}")
+
+    def get_rid(self, offset):
+        return self.pages[-4].get_int(offset)
 
     # so table does not directly interact with page objects
     def get_bp_rid(self, offset):
@@ -176,7 +180,7 @@ class Table:
     """
 
     def __init__(self, name, num_columns, key,
-                 page_directory={}, nums=0, tids=2**64, page_num=0, page_range_map={}, bp_num=0, tp_num=0):
+                 page_directory={}, nums=0, tids=2**64, page_num=0, page_range_map={}, bp_num=0, tp_num=0, merge_count=0):
         # recieve database path, create tail page path by appending name to it
         self.name = name
         self.key = key
@@ -191,6 +195,9 @@ class Table:
         self.latest_bp_id = self.create_pid("b")
         self.buffer_pool = BufferPool(name, num_columns)
         self.index = Index(self)
+        self.merge_count = merge_count
+        self.merge_group = 0
+        self.update_count = 0
 
     def flush_bp(self):
         self.buffer_pool.flush()
@@ -231,6 +238,7 @@ class Table:
         #     return
         # use index to get base rid related to key
         # find basepage ID from page directory
+
         bp_rid = self.index.locate(0, key)[0]
         # find basepage ID from page directory
         bp_id = self.page_directory[bp_rid][0]
@@ -253,7 +261,7 @@ class Table:
         # ask bufferpool for latest tail page
         tail_page = self.get_tail_pg(bp_id)
         tail_page.pin()
-
+        self.check_tps(tail_page)
         # if full, create new tail page ID
         # by requesting the page bufferpool (should) automatically create it
 
@@ -289,12 +297,16 @@ class Table:
         base_page.update_schema(new_schema, base_offset)
 
         # hopefully this works
-        tail_page.pg_write([*val, bp_rid, new_schema, indirection])
+        tail_page.pg_write([*val, tp_rid, bp_rid, new_schema, indirection])
         locations = [tail_page.get_id(), tail_page.num_records() - 1]
         tail_page.unpin()
         base_page.unpin()
         last_update_record.unpin()
         self.addpd(tp_rid, locations)
+
+        self.update_count += 1
+        if self.update_count == 100:
+            self.init_merge()
 
     def print_pg(self):
         '''For Internal use: prints all RIDs and their values found in page directory'''
@@ -324,7 +336,7 @@ class Table:
 
         rid = self.create_rid()
         # write values to base page
-        base_page.pg_write([*values, rid, schema, rid])
+        base_page.pg_write([*values, rid, rid, schema, rid])
         # update page directory and index
         locations = [base_page.get_id(), base_page.num_records() - 1]
         base_page.unpin()
@@ -363,6 +375,7 @@ class Table:
         tail_record_offset = self.page_directory[indirect_rid][1]
         tail_page = self.buffer_pool.return_page(tail_page_id)
         tail_page.pin()
+        self.check_tps(tail_page)
         for i in range(0, abs(relative_version)):
             if indirect_rid == base_rid:
                 break
@@ -407,12 +420,7 @@ class Table:
 
     def sum(self, start_range, end_range, aggregate_column_index, relative_version):
         bp_rids = self.index.locate_range(start_range, end_range, 0)
-        # rid_list = []
-        # for rids in bp_rids:
-        #     if rids != []:
-        #         rid_list.append(*rids)
-        # bp_rids = rid_list
-        # print(bp_rids)
+
         for i in bp_rids:
             if not self.does_exist(i):
                 bp_rids.remove(i)
@@ -462,12 +470,24 @@ class Table:
         val = tail_page.get_col_value(column_number, tail_record_offset)
         return val
 
-    def get_tps(self, tp_id):
-        tail_page = PageGrp(tp_id, self.name, self.num_columns)
-        bp_rid = tail_page.get_bp_rid(tail_page.num_records()-1)
-        bp = self.page_directory[bp_rid][0]
-        base_page = PageGrp(bp, self.name, self.num_columns)
-        return base_page.get_indirection(self.page_directory[bp_rid][1])
+    def check_tps(self, tail_page):
+        count = tail_page.num_records()-1
+        tid = tail_page.get_rid(count)
+        while tid < tail_page.tps:
+            base_rid = tail_page.get_bp_rid(count)
+            base_offset = self.page_directory[base_rid][1]
+            base_page = self.buffer_pool.return_page(
+                self.page_directory[base_rid][0])
+            base_page.pin()
+            if base_page.get_indirection(base_offset) != base_rid:
+                break
+            schema = tail_page.get_schema(count)
+            indirection = tail_page.get_indirection(count)
+            base_page.update_schema(schema, base_offset)
+            base_page.update_indirection(tid)
+            base_page.unpin()
+            count -= 1
+            tid = tail_page.get_rid(count)
 
     def get_bp_copies(self, page_group):
         start = page_group
@@ -479,7 +499,7 @@ class Table:
                 bp = copy.deepcopy(self.buffer_pool.pages_in_mem[id])
             else:
                 bp = copy.deepcopy(PageGrp(id, self.name, self.num_columns))
-            bp.id = "bm1_"+str(i)
+            bp.id = "bm"+str(self.merge_count)+"_"+str(i)
             bp.rel_path = f'./{self.name}/{bp.id}.txt'
 
             copies.append(bp)
@@ -490,10 +510,11 @@ class Table:
        holds the idea of how we tried to implement it. To be working by next milestone.'''
 
     def merge(self):
-
-        merge_group = 1
-        new_basepages = self.get_bp_copies(merge_group)
-
+        self.merge_count += 1
+        self.merge_group += 1
+        if self.merge_group > len(self.page_range_map):
+            self.merge_group = 1
+        new_basepages = self.get_bp_copies(self.merge_group)
         tps = 2**64-1
         update_dict = {}
         for page in new_basepages:
@@ -507,62 +528,20 @@ class Table:
                 tid = page.get_indirection(i)
                 if tid < tps:
                     tps = tid
-                # page.pg_write([*val, rid, '0' * self.num_columns, rid])
                 update_dict[rid] = [page.id, i]
         for page in new_basepages:
             page.tps = tps
+            # print("in merge")
             # for i in range(page.num_records()):
             #     page.print_contents(i)
             page.write_to_file()
 
         for rid in update_dict.keys():
             self.page_directory.update({rid: update_dict[rid]})
-            # self.addpd(rid, update_dict[rid])
-        # merged_schema = '0' * self.num_columns
-        # if self.last_merged_grp >= len(self.page_range_map.keys()):
-        #     self.last_merged_grp = 1
-        # else:
-        #     self.last_merged_grp += 1
 
-        # tp_ids = self.page_range_map[1]
-        # updated_rids = {}
-        # count = (self.last_merged_grp - 1) * 2 + 1
-        # consolidated = PageGrp("b"+str(self.merge_count) +
-        #                        "_"+str(count), self.name, self.num_columns)
-        # cons_rec = 0
-        # tps = self.get_tps(tp_ids[-1])
+    def init_merge(self):
 
-        # consolidated.set_tps(tps)
-        # for tp_id in tp_ids[::-1]:
-        #     tail_page = PageGrp(tp_id, self.name, self.num_columns)
-
-        #     for i in range(tail_page.num_records()-1, -1, -1):
-        #         bp_rid = tail_page.get_bp_rid(i)
-        #         if bp_rid in updated_rids.keys():
-        #             continue
-        #         # updated_rids.append(bp_rid)
-        #         bp = self.page_directory[bp_rid][0]
-        #         base_offset = self.page_directory[bp_rid][1]
-        #         base_page = PageGrp(bp, self.name, self.num_columns)
-        #         values = []
-        #         for col in range(self.num_columns):
-        #             values.append(self.merge_latest_val(
-        #                 base_page, i, col))
-        #         if not consolidated.has_capacity():
-        #             count += 1
-        #             cons_rec = 0
-        #             consolidated.write_to_file()
-        #             consolidated = PageGrp(
-        #                 "b"+str(self.merge_count)+"_"+str(count), self.name, self.num_columns)
-        #             consolidated.set_tps(tps)
-
-        #         consolidated.pg_write(
-        #             [*values, bp_rid, merged_schema, base_page.get_indirection(base_offset)])
-        #         cons_rec += 1
-
-        #         updated_rids[bp_rid] = [
-        #             "b"+str(self.merge_count)+"_"+str(count), cons_rec]
-
-        # consolidated.write_to_file()
-        # for rid in updated_rids.keys():
-        #     self.addpd(rid, updated_rids[rid])
+        # self.update_count = 0
+        print("in init merge")
+        merge_thread = threading.Thread(target=self.merge, name="merger")
+        merge_thread.start()

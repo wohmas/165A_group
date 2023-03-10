@@ -305,7 +305,8 @@ class Table:
         self.addpd(tp_rid, locations)
 
         self.update_count += 1
-        if self.update_count == 100:
+        if self.update_count >= 256:
+            self.update_count = 0
             self.init_merge()
 
     def print_pg(self):
@@ -479,8 +480,8 @@ class Table:
             base_page = self.buffer_pool.return_page(
                 self.page_directory[base_rid][0])
             base_page.pin()
-            if base_page.get_indirection(base_offset) != base_rid:
-                break
+            # if base_page.get_indirection(base_offset) != base_rid:
+            #     break
             schema = tail_page.get_schema(count)
             indirection = tail_page.get_indirection(count)
             base_page.update_schema(schema, base_offset)
@@ -490,9 +491,9 @@ class Table:
             tid = tail_page.get_rid(count)
 
     def get_bp_copies(self, page_group):
-        start = page_group
+        start = (page_group - 1)*10 + 1
         copies = []
-        for i in range(start, min(start+10, self.bp_num)+1):
+        for i in range(start, min(start+10, self.bp_num+1)):
             bp = None
             id = "b_"+str(i)
             if id in self.buffer_pool.pages_in_mem.keys():
@@ -531,9 +532,6 @@ class Table:
                 update_dict[rid] = [page.id, i]
         for page in new_basepages:
             page.tps = tps
-            # print("in merge")
-            # for i in range(page.num_records()):
-            #     page.print_contents(i)
             page.write_to_file()
 
         for rid in update_dict.keys():

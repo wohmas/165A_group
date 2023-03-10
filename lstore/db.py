@@ -33,7 +33,7 @@ class Database():
                     for key in table_attributes[7].keys():
                         pg_range[int(key)] = table_attributes[7][key]
 
-                    print("pg directory:\n", table_attributes[3])
+                    # print("pg directory:\n", table_attributes[3])
                     name = Table(name=table_attributes[0], num_columns=table_attributes[1], key=table_attributes[2],
                                  page_directory=pg_dir, nums=table_attributes[
                                      4], tids=table_attributes[5], page_num=table_attributes[6],

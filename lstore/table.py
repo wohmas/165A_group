@@ -171,6 +171,16 @@ class BufferPool:
                 self.pages_in_mem[id].write_to_file()
 
 
+class Lock_Manager:
+
+    pass
+
+
+class Lock:
+
+    pass
+
+
 class Table:
 
     """
@@ -411,6 +421,7 @@ class Table:
         for i in base_rids:
             if not self.does_exist(i):
                 base_rids.remove(i)
+
         # if len(base_rids) == 0:
         #    return False
         records = []

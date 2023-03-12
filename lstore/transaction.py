@@ -27,6 +27,8 @@ class Transaction:
         for query, args in self.queries:
             result = query(*args)
             # If the query has failed the transaction should abort
+            # ABORTING: IF EXCLUSIVE LOCK, SEND “FALSE” UP THE CHAIN OF CLASSES/FUNCTIONS 
+            # UP TO THE QUERY OBJECT ITSELF
             if result == False:
                 return self.abort()
         return self.commit()

@@ -305,7 +305,7 @@ class Table:
         self.addpd(tp_rid, locations)
 
         self.update_count += 1
-        if self.update_count >= 256:
+        if self.update_count >= 512:
             self.update_count = 0
             self.init_merge()
 
@@ -486,8 +486,11 @@ class Table:
             base_page = self.buffer_pool.return_page(
                 self.page_directory[base_rid][0])
             base_page.pin()
-            # if base_page.get_indirection(base_offset) != base_rid:
-            #     break
+            if base_page.get_indirection(base_offset) == base_rid:
+                base_page.unpin()
+                count -= 1
+                tid = tail_page.get_rid(count)
+                continue
             schema = tail_page.get_schema(count)
             indirection = tail_page.get_indirection(count)
             base_page.update_schema(schema, base_offset)

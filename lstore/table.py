@@ -33,7 +33,7 @@ class PageGrp:
         self.dir = rel_path
         self.rel_path = f'./{rel_path}/{self.id}.txt'
         self.pages = self.read_from_file()
-        self.tps = 0
+        self.tps = 2**64-1
 
     def get_id(self):
         return self.id
@@ -261,7 +261,7 @@ class Table:
         # ask bufferpool for latest tail page
         tail_page = self.get_tail_pg(bp_id)
         tail_page.pin()
-        self.check_tps(tail_page)
+        # self.check_tps(tail_page)
         # if full, create new tail page ID
         # by requesting the page bufferpool (should) automatically create it
 
@@ -376,7 +376,7 @@ class Table:
         tail_record_offset = self.page_directory[indirect_rid][1]
         tail_page = self.buffer_pool.return_page(tail_page_id)
         tail_page.pin()
-        self.check_tps(tail_page)
+        # self.check_tps(tail_page)
         for i in range(0, abs(relative_version)):
             if indirect_rid == base_rid:
                 break
@@ -474,8 +474,14 @@ class Table:
     def check_tps(self, tail_page):
         count = tail_page.num_records()-1
         tid = tail_page.get_rid(count)
+        rid_list = []
         while tid < tail_page.tps:
             base_rid = tail_page.get_bp_rid(count)
+            if base_rid in rid_list:
+                count -= 1
+                tid = tail_page.get_rid(count)
+                continue
+            rid_list.append(base_rid)
             base_offset = self.page_directory[base_rid][1]
             base_page = self.buffer_pool.return_page(
                 self.page_directory[base_rid][0])
@@ -485,7 +491,7 @@ class Table:
             schema = tail_page.get_schema(count)
             indirection = tail_page.get_indirection(count)
             base_page.update_schema(schema, base_offset)
-            base_page.update_indirection(tid)
+            base_page.update_indirection(tid, base_offset)
             base_page.unpin()
             count -= 1
             tid = tail_page.get_rid(count)
@@ -498,6 +504,7 @@ class Table:
             id = "b_"+str(i)
             if id in self.buffer_pool.pages_in_mem.keys():
                 bp = copy.deepcopy(self.buffer_pool.pages_in_mem[id])
+                bp.pages[-1] = self.buffer_pool.pages_in_mem[id].pages[-1]
             else:
                 bp = copy.deepcopy(PageGrp(id, self.name, self.num_columns))
             bp.id = "bm"+str(self.merge_count)+"_"+str(i)
@@ -525,7 +532,7 @@ class Table:
                     value = self.merge_latest_val(page, i, j)
                     page.pages[j].update_int(value, i)
                 page.update_schema('0' * self.num_columns, i)
-                page.update_indirection(rid, i)
+                # page.update_indirection(rid, i)
                 tid = page.get_indirection(i)
                 if tid < tps:
                     tps = tid

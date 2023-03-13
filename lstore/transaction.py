@@ -24,10 +24,10 @@ class Transaction:
         self.queries.append((query, args))
         # use grades_table for aborting
 
-    # If you choose to implement this differently this method must still return True if transaction commits or False on abort
     def getLocks(self):
         pass
-    
+
+    # If you choose to implement this differently this method must still return True if transaction commits or False on abort
     def run(self):
         self.getLocks()
         for query, args in self.queries:

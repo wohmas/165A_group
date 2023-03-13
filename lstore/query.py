@@ -12,7 +12,6 @@ class Query:
 
     def __init__(self, table):
         self.table = table
-        
 
     """
     # internal Method
@@ -94,8 +93,7 @@ class Query:
     """
 
     def sum_version(self, start_range, end_range, aggregate_column_index, relative_version):
-       return self.table.sum(start_range, end_range, aggregate_column_index, relative_version)
-
+        return self.table.sum(start_range, end_range, aggregate_column_index, relative_version)
 
     """
     incremenets one column of the record

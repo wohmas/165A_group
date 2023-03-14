@@ -453,6 +453,70 @@ class Table:
         self.index.remove(0, rid, key)
         self.page_directory.pop(rid)
         return True
+    
+    # def restore_base_id(self, rid, page_id, offset, indirection):
+    #   get the page
+    #
+    #   base_page = self.buffer_pool.return_page(page_id)
+    #   base_page.pin()
+    #   rid_page.update_indirection(indirection, offset) 
+    #   
+    #   add back to page directory
+    #   locations = [page_id, offset]
+    #   self.addpd(rid, locations)
+    #   self.index.insert(rid, base_page.get_col_value(0, offset))
+    #
+    #
+
+
+    # for undoing update
+    # will delete latest tail record and make neccessary adjustments
+    def delete_latest(self, primary_key):
+        base_rid = self.index.locate(0, primary_key)
+
+        base_page_id = self.page_directory[base_rid[0]][0]
+        # offset value corresponding to rid
+        base_record_offset = self.page_directory[base_rid[0]][1]
+        # actual page object which contains the rid
+        base_page = self.buffer_pool.return_page(base_page_id)
+        base_page.pin()
+        # get indirection value of this base page
+        # latest_rid is to save for removing from page directory at the end,
+        # indirect_rid is for the for loop
+        latest_rid = base_page.get_indirection(base_record_offset)
+        indirect_rid = base_page.get_indirection(base_record_offset)
+        # go to latest tail page, get its info
+        print(indirect_rid)
+        print(self.page_directory)
+        tail_page_id = self.page_directory[indirect_rid][0]
+        tail_record_offset = self.page_directory[indirect_rid][1]
+        tail_page = self.buffer_pool.return_page(tail_page_id)
+        tail_page.pin()
+        self.check_tps(tail_page)
+
+        #we want second to last tail record every time so relative version is always -1
+        for i in range(0, abs(-1)):
+            if indirect_rid == base_rid:
+                break
+            # use indirection to go to last tail page
+            indirect_rid = tail_page.get_indirection(tail_record_offset)
+            tail_page_id = self.page_directory[indirect_rid][0]
+            tail_record_offset = self.page_directory[indirect_rid][1]
+            tail_page.unpin()
+            tail_page = self.buffer_pool.return_page(tail_page_id)
+            tail_page.pin()
+
+        #update indirection of base page
+        base_page.update_indirection(indirect_rid, base_record_offset)
+
+        #update schema of base page
+        base_page.update_schema(tail_page.get_schema(tail_record_offset), base_record_offset)
+
+        # "delete" record
+        self.page_directory.pop(latest_rid)
+        base_page.unpin()
+        tail_page.unpin()
+
 
     # Helper functions to be used with merge
     def merge_latest_val(self, pg, offset, column_number):

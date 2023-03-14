@@ -517,24 +517,30 @@ class Table:
         self.page_directory.pop(rid)
         return True
     
-    # def restore_base_id(self, rid, page_id, offset, indirection):
+    
+    def undo_delete(self, rid, page_id, offset, indirection):
     #   get the page
     #
-    #   base_page = self.buffer_pool.return_page(page_id)
-    #   base_page.pin()
-    #   rid_page.update_indirection(indirection, offset) 
+        base_page = self.buffer_pool.return_page(page_id)
+        base_page.pin()
+
+        # fix indirection
+        base_page.update_indirection(indirection, offset) 
     #   
     #   add back to page directory
-    #   locations = [page_id, offset]
-    #   self.addpd(rid, locations)
-    #   self.index.insert(rid, base_page.get_col_value(0, offset))
+        locations = [page_id, offset]
+        self.addpd(rid, locations)
+
+    #   add back to index    
+        self.index.insert(rid, base_page.get_col_value(0, offset), 0)
+    #   
     #
     #
 
 
     # for undoing update
     # will delete latest tail record and make neccessary adjustments
-    def delete_latest(self, primary_key):
+    def undo_update(self, primary_key):
         base_rid = self.index.locate(0, primary_key)
 
         base_page_id = self.page_directory[base_rid[0]][0]

@@ -2,6 +2,7 @@
 A data strucutre holding indices for various columns of a table. Key column should be indexd by default, other columns can be indexed through this object. Indices are usually B-Trees, but other data structures can be used as well.
 """
 from BTrees.OOBTree import OOBTree
+import threading
 
 
 class Index:
@@ -11,16 +12,19 @@ class Index:
         self.table = table
         self.indices = [None for i in range(table.num_columns)]
         self.indices[0] = self.create_index(0)
+        self.lock = threading.Lock()
 
     # insert new records
     # if key not unique, will overwrite old rid value
     def insert(self, rid, value, col):
+        self.lock.acquire()
         if self.indices[col] == None:
             return
         vals = self.locate(col, value)
         vals.append(rid)
         # print("col: ", i, "value: ", value, "vals: ", vals)
         self.indices[col].update({value: vals})
+        self.lock.release()
 
     def insert_all_existing_index(self, rid, values):
         i = 0

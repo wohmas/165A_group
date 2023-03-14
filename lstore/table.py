@@ -1,6 +1,10 @@
 from lstore.index import Index
 from time import time
 from lstore.page import Page
+from lstore.lock_manager import Lock_Manager
+from lstore.lock_manager import TPLock
+
+
 import os
 import threading
 import math
@@ -131,6 +135,7 @@ class BufferPool:
         self.pages_in_mem = {}  # key: id, Value: PageGrp object
         self.path = path
         self.num_col = num_col
+        self.lock = threading.Lock()
 
     # to be called in add page if buffer pool is full
     # page ejection
@@ -160,8 +165,10 @@ class BufferPool:
 
     # table getter
     def return_page(self, id):
+        self.lock.acquire()
         if self.pages_in_mem.get(id) == None:
             self.add_page(id)
+        self.lock.release()
 
         return self.pages_in_mem.get(id)
 
@@ -182,12 +189,16 @@ class Table:
     def __init__(self, name, num_columns, key,
                  page_directory={}, nums=0, tids=2**64, page_num=0, page_range_map={}, bp_num=0, tp_num=0, merge_count=0):
         # recieve database path, create tail page path by appending name to it
+        self.rid_lock = threading.Lock()
+        self.tid_lock = threading.Lock()
+        self.pid_lock = threading.Lock()
         self.name = name
         self.key = key
         self.num_columns = num_columns
         self.page_directory = page_directory
         self.rids = nums
         self.tids = tids
+
         self.page_num = page_num
         self.page_range_map = page_range_map
         self.bp_num = bp_num
@@ -198,6 +209,8 @@ class Table:
         self.merge_count = merge_count
         self.merge_group = 0
         self.update_count = 0
+        self.rid_lock_map = {}
+        self.lock_manager = Lock_Manager()
 
     def flush_bp(self):
         self.buffer_pool.flush()
@@ -205,10 +218,11 @@ class Table:
     def get_tail_pg(self, bp_id):
         bp_id = int(bp_id.split("_")[1])
         grp = math.ceil(bp_id/10)
-        # print("grp: ", grp)
 
         if grp not in self.page_range_map.keys():
+            self.pid_lock.acquire()
             self.page_range_map[grp] = self.create_pid("t")
+            self.pid_lock.release()
         tp_id = self.page_range_map[grp]
         tail_page = self.buffer_pool.return_page(tp_id)
         tail_page.pin()
@@ -261,12 +275,12 @@ class Table:
         # ask bufferpool for latest tail page
         tail_page = self.get_tail_pg(bp_id)
         tail_page.pin()
-        self.check_tps(tail_page)
+        # self.check_tps(tail_page)
         # if full, create new tail page ID
         # by requesting the page bufferpool (should) automatically create it
-
+        self.tid_lock.acquire()
         tp_rid = self.create_tid()
-
+        self.tid_lock.release()
         # get rid from base indirection column via pagegroup
         indirection = base_page.get_indirection(base_offset)
         # update indirection value of base record via pagegroup
@@ -304,10 +318,10 @@ class Table:
         last_update_record.unpin()
         self.addpd(tp_rid, locations)
 
-        self.update_count += 1
-        if self.update_count >= 512:
-            self.update_count = 0
-            self.init_merge()
+        # self.update_count += 1
+        # if self.update_count >= 512:
+        #     self.update_count = 0
+        #     self.init_merge()
 
     def print_pg(self):
         '''For Internal use: prints all RIDs and their values found in page directory'''
@@ -329,13 +343,16 @@ class Table:
         # by requesting the page bufferpool (should) automatically create it
         if base_page.has_capacity() == False:
             # print("in has cap false")
+            self.pid_lock.acquire()
             self.latest_bp_id = self.create_pid("b")
+            self.pid_lock.release()
             # print(self.latest_bp_id)
             base_page.unpin()
             base_page = self.buffer_pool.return_page(self.latest_bp_id)
             base_page.pin()
-
+        self.rid_lock.acquire()
         rid = self.create_rid()
+        self.rid_lock.release()
         # write values to base page
         base_page.pg_write([*values, rid, rid, schema, rid])
         # update page directory and index
@@ -347,10 +364,12 @@ class Table:
 
     def create_rid(self):
         self.rids += 1
+        self.rid_lock_map[self.rids] = TPLock()
         return self.rids
 
     def create_tid(self):
         self.tids -= 1
+        self.rid_lock_map[self.tids] = TPLock()
         return self.tids
 
     def create_pid(self, type):
@@ -376,7 +395,7 @@ class Table:
         tail_record_offset = self.page_directory[indirect_rid][1]
         tail_page = self.buffer_pool.return_page(tail_page_id)
         tail_page.pin()
-        self.check_tps(tail_page)
+        # self.check_tps(tail_page)
         for i in range(0, abs(relative_version)):
             if indirect_rid == base_rid:
                 break
@@ -411,6 +430,7 @@ class Table:
         for i in base_rids:
             if not self.does_exist(i):
                 base_rids.remove(i)
+
         # if len(base_rids) == 0:
         #    return False
         records = []
@@ -434,6 +454,49 @@ class Table:
             records.append(self.search_rid(rid, projected_col_index,
                            relative_version).columns[aggregate_column_index])
         return sum(records)
+
+    def get_read_locks(self, relative_version, transaction,  search_key=-1, search_key_index=-1, start_range=-1, end_range=-1):
+        base_rids = None
+        if search_key_index == -1:
+            base_rids = self.index.locate_range(start_range, end_range, 0)
+        else:
+            base_rids = self.index.locate(search_key_index, search_key)
+
+        for i in base_rids:
+            if not self.does_exist(i):
+                base_rids.remove(i)
+        for base_rid in base_rids:
+            self.lock_manager.getLock(
+                transaction, self.rid_lock_map[base_rid], "s")
+            base_page_id = self.page_directory[base_rid][0]
+            # offset value corresponding to rid
+            base_record_offset = self.page_directory[base_rid][1]
+            # actual page object which contains the rid
+            base_page = self.buffer_pool.return_page(base_page_id)
+            base_page.pin()
+            # get indirection value of this base page
+            indirect_rid = base_page.get_indirection(base_record_offset)
+            # go to latest tail page, get its info
+            tail_page_id = self.page_directory[indirect_rid][0]
+            tail_record_offset = self.page_directory[indirect_rid][1]
+            tail_page = self.buffer_pool.return_page(tail_page_id)
+            tail_page.pin()
+            # self.check_tps(tail_page)
+            for i in range(0, abs(relative_version)):
+                if indirect_rid == base_rid:
+                    break
+                # use indirection to go to last tail page
+                indirect_rid = tail_page.get_indirection(tail_record_offset)
+                tail_page_id = self.page_directory[indirect_rid][0]
+                tail_record_offset = self.page_directory[indirect_rid][1]
+                tail_page.unpin()
+                tail_page = self.buffer_pool.return_page(tail_page_id)
+                tail_page.pin()
+            tail_page.unpin()
+            if indirect_rid != base_rid:
+                self.lock_manager.getLock(
+                    transaction, self.rid_lock_map[indirect_rid], "s")
+        return True
 
     def does_exist(self, rid):
         if rid in self.page_directory:

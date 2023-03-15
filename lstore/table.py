@@ -57,8 +57,6 @@ class PageGrp:
         return values
 
     def get_col_value(self, col, offset):
-        print("in get_col_value")
-        print(self.pages[col].get_int(offset))
         return self.pages[col].get_int(offset)
 
     def write_to_file(self):
@@ -271,9 +269,7 @@ class Table:
                 print("same primary key")
                 return
         new_schema = ''.join('0' if val is None else '1' for val in cols)
-        print("new schema ", new_schema)
         for i in range(0, len(new_schema)):
-            print(i)
             if new_schema[i] == '1':
 
                 val = self.index.get_latest_val(base_page, base_offset, i)

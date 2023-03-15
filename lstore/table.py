@@ -459,6 +459,29 @@ class Table:
                            relative_version).columns[aggregate_column_index])
         return sum(records)
 
+    def get_update_locks(self, transaction, primary_key):
+        bp_rid = self.index.locate(0, primary_key)[0]
+        got_lock1 = self.lock_manager.getLock(
+                transaction, self.rid_lock_map[bp_rid], "e")
+        if not got_lock1:
+            return False
+        bp_id = self.page_directory[bp_rid][0]
+        base_offset = self.page_directory[bp_rid][1]
+        base_page = self.buffer_pool.return_page(bp_id)
+        base_page.pin()
+        indirection = base_page.get_indirection(base_offset)
+        if bp_rid == indirection:
+            base_page.unpin()
+            return got_lock1
+        got_lock2 = self.lock_manager.getLock(
+                transaction, self.rid_lock_map[indirection], "e")
+        if not got_lock2:
+            base_page.unpin()
+            return False
+        else:
+            base_page.unpin()
+            return True
+
     def get_read_locks(self, relative_version, transaction,  search_key=-1, search_key_index=-1, start_range=-1, end_range=-1):
         base_rids = None
         if search_key_index == -1:

@@ -80,15 +80,18 @@ class Index:
 
     def get_latest_val(self, pg, offset, column_number):
         if(pg.get_schema(offset)[column_number] == '0'):
+            print("in if - get latest val")
             return pg.get_col_value(column_number, offset)
 
         indirection = pg.get_indirection(offset)
+        print(indirection)
         tail_page_id = self.table.page_directory[indirection][0]
         tail_record_offset = self.table.page_directory[indirection][1]
         tail_page = self.table.buffer_pool.return_page(tail_page_id)
         tail_page.pin()
         val = tail_page.get_col_value(column_number, tail_record_offset)
         tail_page.unpin()
+        print("not in if - get latest val")
         return val
     """
     # optional: Create index on specific column

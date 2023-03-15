@@ -57,10 +57,7 @@ class PageGrp:
         return values
 
     def get_col_value(self, col, offset):
-        print("trying to get col value!!!")
-        print(offset)
-        print(col)
-        print(self.pages[col].get_int(offset))
+        print("in get_col_value")
         return self.pages[col].get_int(offset)
 
     def write_to_file(self):
@@ -258,6 +255,8 @@ class Table:
         # find basepage ID from page directory
 
         bp_rid = self.index.locate(0, key)[0]
+        print("bp_rid:")
+        print(bp_rid)
         
         # find basepage ID from page directory
         bp_id = self.page_directory[bp_rid][0]
@@ -269,6 +268,7 @@ class Table:
         # generate schema for updated columns
         if cols[0] != None:
             if self.index.locate(0, cols[0]) != []:
+                print("same primary key")
                 return
         new_schema = ''.join('0' if val is None else '1' for val in cols)
         for i in range(0, len(new_schema)):

@@ -83,7 +83,6 @@ class Index:
             return pg.get_col_value(column_number, offset)
 
         indirection = pg.get_indirection(offset)
-        # print(indirection)
         tail_page_id = self.table.page_directory[indirection][0]
         tail_record_offset = self.table.page_directory[indirection][1]
         tail_page = self.table.buffer_pool.return_page(tail_page_id)

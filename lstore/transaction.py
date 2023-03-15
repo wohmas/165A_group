@@ -1,5 +1,7 @@
 from lstore.table import Table, Record
 from lstore.index import Index
+from lstore.query import Query
+
 
 
 class Transaction:
@@ -30,14 +32,31 @@ class Transaction:
     # If you choose to implement this differently this method must still return True if transaction commits or False on abort
     def run(self):
         self.getLocks()
+        i = 1
         for query, args in self.queries:
             result = query(*args)
             # If the query has failed the transaction should abort
             if result == False:
-                return self.abort()
+                print("Going to abort")
+                return self.abort(i-1)
+            i = i + 1
         return self.commit()
 
-    def abort(self):
+    def abort(self, num_queries):
+
+        while(num_queries >= 1):
+        #   if str(self.queries[num_queries][0]) == 'query.update':
+        #       # self.queries[num_queries][1] is the table
+        #       self.queries[num_queries][2][1] is the primary key
+        #       self.queries[num_queries][1].undo_update(self.queries[num_queries][2][1])
+        #   
+            print("trynig to enter the if statement")  
+            if self.queries[num_queries][0] == query.insert: 
+                self.queries[num_queries][1].delete(self.queries[num_queries][2][0])
+        #       
+        #   add the undo delete if condition
+            num_queries = num_queries-1   
+
         # TODO: do roll-back and any other necessary operations
         return False
 

@@ -57,6 +57,10 @@ class PageGrp:
         return values
 
     def get_col_value(self, col, offset):
+        print("trying to get col value!!!")
+        print(offset)
+        print(col)
+        print(self.pages[col].get_int(offset))
         return self.pages[col].get_int(offset)
 
     def write_to_file(self):
@@ -254,6 +258,7 @@ class Table:
         # find basepage ID from page directory
 
         bp_rid = self.index.locate(0, key)[0]
+        
         # find basepage ID from page directory
         bp_id = self.page_directory[bp_rid][0]
         base_offset = self.page_directory[bp_rid][1]
@@ -268,6 +273,7 @@ class Table:
         new_schema = ''.join('0' if val is None else '1' for val in cols)
         for i in range(0, len(new_schema)):
             if new_schema[i] == '1':
+                print("attemping getting latest value from index")
                 val = self.index.get_latest_val(base_page, base_offset, i)
                 self.index.remove(i, bp_rid, val)
                 self.index.insert(bp_rid, cols[i], i)
@@ -514,9 +520,10 @@ class Table:
         rid_page.update_indirection(0, rid_record_offset)
         rid_page.unpin()
         self.index.remove(0, rid, key)
+        print(self.page_directory)
         self.page_directory.pop(rid)
         return True
-    
+
     
     def undo_delete(self, rid, page_id, offset, indirection):
     #   get the page
@@ -531,8 +538,12 @@ class Table:
         locations = [page_id, offset]
         self.addpd(rid, locations)
 
+        print(self.page_directory)
+        print(base_page.get_col_value(0, offset))
     #   add back to index    
         self.index.insert(rid, base_page.get_col_value(0, offset), 0)
+
+        print(self.index)
     #   
     #
     #

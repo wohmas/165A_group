@@ -1,9 +1,9 @@
-from lstore.page import Page
+# from lstore.page import Page
 import os
 import threading
 import math
-from lstore.transaction import Transaction
-from lstore.table import Table
+# from lstore.transaction import Transaction
+# from lstore.table import Table
 
 
 class Lock_Manager:

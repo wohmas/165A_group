@@ -18,7 +18,9 @@ class Index:
     # if key not unique, will overwrite old rid value
     def insert(self, rid, value, col):
         self.lock.acquire()
+        print("in insert")
         if self.indices[col] == None:
+            self.lock.release()
             return
         vals = self.locate(col, value)
         vals.append(rid)
@@ -82,7 +84,7 @@ class Index:
         if(pg.get_schema(offset)[column_number] == '0'):
             print("in if - get latest val")
             return pg.get_col_value(column_number, offset)
-
+        print("after if")
         indirection = pg.get_indirection(offset)
         print(indirection)
         tail_page_id = self.table.page_directory[indirection][0]
@@ -111,8 +113,11 @@ class Index:
                 self.insert(rid, val, column_number)
 
     def remove(self, column, rid, value):
+        print("in remove")
         if self.indices[column] == None:
+            print("no inmdex")
             return
+        print("yes index")
         self.indices[column].get(value).remove(rid)
     """
     # optional: Drop index of specific column

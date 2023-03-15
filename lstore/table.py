@@ -58,6 +58,7 @@ class PageGrp:
 
     def get_col_value(self, col, offset):
         print("in get_col_value")
+        print(self.pages[col].get_int(offset))
         return self.pages[col].get_int(offset)
 
     def write_to_file(self):
@@ -255,9 +256,8 @@ class Table:
         # find basepage ID from page directory
 
         bp_rid = self.index.locate(0, key)[0]
-        print("bp_rid:")
-        print(bp_rid)
-        
+        print("bp_rid: ", bp_rid)
+
         # find basepage ID from page directory
         bp_id = self.page_directory[bp_rid][0]
         base_offset = self.page_directory[bp_rid][1]
@@ -271,9 +271,11 @@ class Table:
                 print("same primary key")
                 return
         new_schema = ''.join('0' if val is None else '1' for val in cols)
+        print("new schema ", new_schema)
         for i in range(0, len(new_schema)):
+            print(i)
             if new_schema[i] == '1':
-                print("attemping getting latest value from index")
+
                 val = self.index.get_latest_val(base_page, base_offset, i)
                 self.index.remove(i, bp_rid, val)
                 self.index.insert(bp_rid, cols[i], i)
@@ -524,33 +526,32 @@ class Table:
         self.page_directory.pop(rid)
         return True
 
-    
     def undo_delete(self, rid, page_id, offset, indirection):
-    #   get the page
-    #
+        #   get the page
+        #
         base_page = self.buffer_pool.return_page(page_id)
         base_page.pin()
 
         # fix indirection
-        base_page.update_indirection(indirection, offset) 
-    #   
+        base_page.update_indirection(indirection, offset)
+    #
     #   add back to page directory
         locations = [page_id, offset]
         self.addpd(rid, locations)
-
-        print(self.page_directory)
-        print(base_page.get_col_value(0, offset))
-    #   add back to index    
+#
+        # print(self.page_directory)
+        # print(base_page.get_col_value(0, offset))
+    #   add back to index
         self.index.insert(rid, base_page.get_col_value(0, offset), 0)
 
         print(self.index)
-    #   
     #
     #
-
+    #
 
     # for undoing update
     # will delete latest tail record and make neccessary adjustments
+
     def undo_update(self, primary_key):
         base_rid = self.index.locate(0, primary_key)
 
@@ -574,7 +575,7 @@ class Table:
         tail_page.pin()
         self.check_tps(tail_page)
 
-        #we want second to last tail record every time so relative version is always -1
+        # we want second to last tail record every time so relative version is always -1
         for i in range(0, abs(-1)):
             if indirect_rid == base_rid:
                 break
@@ -586,19 +587,20 @@ class Table:
             tail_page = self.buffer_pool.return_page(tail_page_id)
             tail_page.pin()
 
-        #update indirection of base page
+        # update indirection of base page
         base_page.update_indirection(indirect_rid, base_record_offset)
 
-        #update schema of base page
-        base_page.update_schema(tail_page.get_schema(tail_record_offset), base_record_offset)
+        # update schema of base page
+        base_page.update_schema(tail_page.get_schema(
+            tail_record_offset), base_record_offset)
 
         # "delete" record
         self.page_directory.pop(latest_rid)
         base_page.unpin()
         tail_page.unpin()
 
-
     # Helper functions to be used with merge
+
     def merge_latest_val(self, pg, offset, column_number):
         if pg.get_schema(offset)[column_number] == '0':
             ret = pg.get_col_value(column_number, offset)

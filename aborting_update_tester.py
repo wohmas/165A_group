@@ -12,10 +12,9 @@ query.insert(1, 1, 1, 1, 1)
 test_table.print_pg()
 query.delete(1)
 test_table.undo_delete(1, "b_1", 0, 1)
-test_table.print_pg()
-query.update(1, *[None,2,2,2,2])
+query.update(1, *[None, 2, 2, 2, 2])
 
-print(test_table.page_directory)
+print("pg directory after updaye: ", test_table.page_directory)
 test_table.print_pg()
 
 db.close()

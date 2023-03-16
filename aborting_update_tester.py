@@ -8,12 +8,15 @@ test_table = db.create_table("test", 5, 0)
 
 query = Query(test_table)
 
+
+
 t = Transaction()
-t2 = Transaction()
+#t2 = Transaction()
 t.add_query(query.insert, test_table, *[1, 1, 1, 1, 1])
-t2.add_query(query.update, test_table, 1, *[None, 1, 1, 2, 1])
-# t.add_query(query.insert, test_table, *[1, 1, 1, 1, 1])
-# t.add_query(query.insert, test_table, *[1, 1, 1, 1, 1])
+#t2.add_query(query.update, test_table, 1, *[None, 1, 1, 2, 1])
+#t2.add_query(query.select, test_table, 1, 0, [1,1,1,1,1])
+t.add_query(query.insert, test_table, *[2, 1, 1, 1, 1])
+t.add_query(query.insert, test_table, *[3, 1, 1, 1, 1])
 # t.add_query(query.insert, test_table, *[1, 1, 1, 1, 1])
 # t.add_query(query.insert, test_table, *[1, 1, 1, 1, 1])
 # t.add_query(query.insert, test_table, *[2, 2, 2, 2, 2])
@@ -32,8 +35,8 @@ t.add_query(query.insert, test_table, *[6, 6, 6, 6, 6])
 
 
 t.run()
-t2.run()
-print("after transaction")
-test_table.print_pg()
+#t2.run()
+#print("after transaction")
+#test_table.print_pg()
 
 db.close()

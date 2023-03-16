@@ -74,7 +74,7 @@ class Transaction:
         for query, args in self.queries:
             # checking for delete
             if query.__name__ == "delete":
-                print("delete query")
+                # print("delete query")
                 self.delete_data.append(
                     self.table_map[query].return_delete_data(*args))
             result = None
@@ -85,9 +85,9 @@ class Transaction:
                 result = query(*args)
 
             # If the query has failed the transaction should abort
-            print("result", result)
+            # print("result", result)
             if result == False:
-                print("Going to abort")
+                #print("Going to abort")
                 return self.abort(i-1)
             i = i + 1
         # RELEASING LOCKS??
@@ -104,15 +104,15 @@ class Transaction:
                     self.queries[num_queries][1][0])
 
         #    check for insert
-            print("checking for insert")
+            # print("checking for insert")
             if func_name == "insert":
                 self.table_map[query].delete_rec(
                     self.queries[num_queries][1][0])
 
         #   check for delete
-            print("checking for delete")
+            # print("checking for delete")
             if func_name == "delete":
-                print("undoing delete")
+                # print("undoing delete")
                 delete_list = self.delete_data.pop()
                 self.table_map[query].undo_delete(
                     delete_list[0], delete_list[1], delete_list[2])

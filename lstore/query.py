@@ -31,7 +31,6 @@ class Query:
 
     def insert(self, *columns, transaction= None):
         schema_encoding = '0' * self.table.num_columns
-        print("in insert")
         return self.table.insert(columns, schema_encoding, transaction= transaction)
 
     """

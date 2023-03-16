@@ -41,11 +41,9 @@ class Index:
         ret = None
         if self.indices[column] == None:
             ret = self.search_db(column, value, value)
-            print("ret: ", ret)
 
             return ret
         ret = list(self.indices[column].values(value, value))
-        print("ret: ", ret)
         if len(ret) == 0:
             return ret
         return ret[0]

@@ -350,7 +350,6 @@ class Table:
             print("======================================================")
 
     def insert(self, values, schema, transaction=None):
-        print(self.index.locate(0, values[0]))
 
         #or self.index.locate(0, values[0])!= None condition removed
         if self.index.locate(0, values[0]) != []:
@@ -461,6 +460,8 @@ class Table:
         for rid in base_rids:
             records.append(self.search_rid(
                 rid, projected_columns_index, relative_version))
+        # print("Select Results:")    
+        # print(records[0].print_record())
         return records
 
     def sum(self, start_range, end_range, aggregate_column_index, relative_version):
@@ -487,6 +488,8 @@ class Table:
 
     def get_update_locks(self, transaction, primary_key):
         bp_rid = self.index.locate(0, primary_key)[0]
+        if bp_rid not in self.rid_lock_map.keys():
+            self.rid_lock_map[bp_rid] = TPLock()
         got_lock1 = self.lock_manager.getLock(
             transaction, self.rid_lock_map[bp_rid], "e")
         if not got_lock1:
@@ -518,6 +521,8 @@ class Table:
             if not self.does_exist(i):
                 base_rids.remove(i)
         for base_rid in base_rids:
+            if base_rid not in self.rid_lock_map.keys():
+                self.rid_lock_map[base_rid] = TPLock()
             self.lock_manager.getLock(
                 transaction, self.rid_lock_map[base_rid], "s")
             base_page_id = self.page_directory[base_rid][0]

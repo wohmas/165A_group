@@ -39,6 +39,8 @@ class PageGrp:
         self.pages = self.read_from_file()
         self.tps = 0
         self.pin_count = 0
+        self.pinlock = threading.Lock()
+        self.unpinlock = threading.Lock()
 
     def get_id(self):
         return self.id
@@ -123,17 +125,17 @@ class PageGrp:
         return self.pages[-2].update_str(schema, offset)
 
     def pin(self):
-        threading.Lock.acquire()
+        self.pinlock.acquire()
         self.isPinned = True
         self.pin_count += 1
-        threading.Lock.release()
+        self.pinlock.release()
 
     def unpin(self):
-        threading.Lock.acquire()
+        self.unpinlock.acquire()
         self.pin_count -= 1
         if(self.pin_count == 0):
             self.isPinned = False
-        threading.Lock.release()
+        self.unpinlock.release()
 
 
 class BufferPool:
@@ -472,6 +474,12 @@ class Table:
             records.append(self.search_rid(rid, projected_col_index,
                            relative_version).columns[aggregate_column_index])
         return sum(records)
+
+    def get_del_lock(self, primary_key, transaction):
+        rid = self.index.locate(0, primary_key)[0]
+        if not self.does_exist(rid):
+            return False
+        return self.lock_manager.getLock(transaction, self.rid_lock_map[rid], "e")
 
     def get_update_locks(self, transaction, primary_key):
         bp_rid = self.index.locate(0, primary_key)[0]

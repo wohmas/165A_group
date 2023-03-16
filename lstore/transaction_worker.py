@@ -44,10 +44,6 @@ class TransactionWorker:
         for index in range(len(self.transactions)):
             # each transaction returns True if committed or False if aborted
             result = self.transactions[index].run()
-            if result:
-                self.stats.append(result)
-            else:
-                index -= 1
-
+            self.stats.append(result)
         # stores the number of transactions that committed
         self.result = len(list(filter(lambda x: x, self.stats)))

@@ -264,7 +264,7 @@ class Table:
         # find basepage ID from page directory
 
         bp_rid = self.index.locate(0, key)[0]
-        #print(self.page_directory)
+        # print(self.page_directory)
         #print("bp_rid: ", bp_rid)
 
         # find basepage ID from page directory
@@ -350,7 +350,9 @@ class Table:
             print("======================================================")
 
     def insert(self, values, schema, transaction=None):
-        if self.index.locate(0, values[0]) != []:
+        print(self.index.locate(0, values[0]))
+
+        if self.index.locate(0, values[0]) != [] or self.index.locate(0, values[0])!= None:
             return False
         # ask bufferpool for newest base page
         # call has_capacity on page_group
@@ -562,10 +564,9 @@ class Table:
         # rid_page.update_indirection(0, rid_record_offset)
         rid_page.unpin()
         self.index.remove(0, rid, key)
-        print(self.page_directory)
         self.page_directory.pop(rid)
         return True
-    
+
     def return_delete_data(self, key):
         data = []
         rid = self.index.locate(0, key)[0]
@@ -575,11 +576,8 @@ class Table:
         rid_record_offset = self.page_directory[rid][1]
         data.append(rid)
         data.append(rid_page_id)
-        data.append(rid_record_offset)    
+        data.append(rid_record_offset)
         return data
-
-
-
 
     def undo_delete(self, rid, page_id, offset):
         #   get the page
@@ -596,7 +594,7 @@ class Table:
     #   add back to index
         self.index.insert(rid, base_page.get_col_value(0, offset), 0)
 
-        #print(self.index)
+        # print(self.index)
     #
     #
     #
@@ -619,8 +617,8 @@ class Table:
         latest_rid = base_page.get_indirection(base_record_offset)
         indirect_rid = base_page.get_indirection(base_record_offset)
         # go to latest tail page, get its info
-        #print(indirect_rid)
-        #print(self.page_directory)
+        # print(indirect_rid)
+        # print(self.page_directory)
         tail_page_id = self.page_directory[indirect_rid][0]
         tail_record_offset = self.page_directory[indirect_rid][1]
         tail_page = self.buffer_pool.return_page(tail_page_id)

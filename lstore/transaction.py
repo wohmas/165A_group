@@ -67,61 +67,63 @@ class Transaction:
     # If you choose to implement this differently this method must still return True if transaction commits or False on abort
 
     def run(self):
-        self.getLocks()
-        i = 1
+        if not self.getLocks():
+            return False
+        i = 0
 
         for query, args in self.queries:
             # checking for delete
             if query.__name__ == "delete":
                 print("delete query")
-                print(args)
-                self.delete_data.append(self.table_map[query].return_delete_data(*args))
-            print("query: ", query.__name__)
-            print(query.__name__ == "insert")
-            result = query(*args)
+                self.delete_data.append(
+                    self.table_map[query].return_delete_data(*args))
+            result = None
+            if query.__name__ == "insert" or query.__name__ == "update":
+
+                result = query(*args, transaction=self)
+            else:
+                result = query(*args)
+
             # If the query has failed the transaction should abort
-            print("Query Result:")
-            print(result)
+            print("result", result)
             if result == False:
                 print("Going to abort")
-                print(self.queries[i-1][1].print_pg())
                 return self.abort(i-1)
             i = i + 1
-        #RELEASING LOCKS??    
+        # RELEASING LOCKS??
         return self.commit()
 
     def abort(self, num_queries):
 
-        while(num_queries >= 1):
-        #   checking for update
+        while(num_queries >= 0):
+            #   checking for update
+            query = self.queries[num_queries][0]
+            func_name = self.queries[num_queries][0].__name__
+            if func_name == "update":
+                self.table_map[query].undo_update(
+                    self.queries[num_queries][1][0])
 
-            if len(self.queries[num_queries][2]) == self.queries[num_queries][1].num_columns + 1:
-         #       print(self.queries[num_queries][1])
-          #      print(self.queries[num_queries][2][1])
-                 self.queries[num_queries][1].undo_update(self.queries[num_queries][2][0])
-        
         #    check for insert
             print("checking for insert")
-            print(len(self.queries[num_queries][2]))
-            if len(self.queries[num_queries][2]) == self.queries[num_queries][1].num_columns:
-                self.queries[num_queries][1].delete_rec(self.queries[num_queries][2][0])
-               
+            if func_name == "insert":
+                self.table_map[query].delete_rec(
+                    self.queries[num_queries][1][0])
+
         #   check for delete
             print("checking for delete")
-            print(len(self.queries[num_queries][2]))
-            if len(self.queries[num_queries][2]) == 1:
+            if func_name == "delete":
                 print("undoing delete")
                 delete_list = self.delete_data.pop()
-                self.queries[num_queries][1].undo_delete(delete_list[0], delete_list[1], delete_list[2])
-                print(self.queries[num_queries][1].page_directory)
-                #do delete stuff
+                self.table_map[query].undo_delete(
+                    delete_list[0], delete_list[1], delete_list[2])
+                # do delete stuff
 
-            num_queries = num_queries-1   
+            num_queries = num_queries-1
+        self.releaseLocks()
 
-
-        # TODO: do roll-back and any other necessary operations
         return False
 
     def commit(self):
         # TODO: commit to database
+        self.releaseLocks()
         return True

@@ -40,10 +40,12 @@ class Index:
     def locate(self, column, value):
         ret = None
         if self.indices[column] == None:
-            return self.search_db(column, value, value)
+            ret = self.search_db(column, value, value)
+            print("ret: ", ret)
 
+            return ret
         ret = list(self.indices[column].values(value, value))
-
+        print("ret: ", ret)
         if len(ret) == 0:
             return ret
         return ret[0]
@@ -74,9 +76,7 @@ class Index:
             for i in range(rec_no):
                 rid = pg.get_bp_rid(i)
                 val = self.get_latest_val(pg, i, column_number)
-                print(val)
-                print(begin)
-                print(end)
+
                 if val >= begin and val <= end:
                     ret.append(rid)
                 pg.unpin()

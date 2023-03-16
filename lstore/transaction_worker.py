@@ -43,6 +43,7 @@ class TransactionWorker:
     def __run(self):
         for index in range(len(self.transactions)):
             # each transaction returns True if committed or False if aborted
+            # create a loop here if result is false to run the transaction over and over
             result = self.transactions[index].run()
             self.stats.append(result)
         # stores the number of transactions that committed

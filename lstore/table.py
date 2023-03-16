@@ -352,7 +352,8 @@ class Table:
     def insert(self, values, schema, transaction=None):
         print(self.index.locate(0, values[0]))
 
-        if self.index.locate(0, values[0]) != [] or self.index.locate(0, values[0])!= None:
+        #or self.index.locate(0, values[0])!= None condition removed
+        if self.index.locate(0, values[0]) != []:
             return False
         # ask bufferpool for newest base page
         # call has_capacity on page_group

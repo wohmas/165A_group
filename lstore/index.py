@@ -18,7 +18,6 @@ class Index:
     # if key not unique, will overwrite old rid value
     def insert(self, rid, value, col):
         self.lock.acquire()
-        print("in insert")
         if self.indices[col] == None:
             self.lock.release()
             return

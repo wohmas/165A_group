@@ -25,7 +25,12 @@ class Lock_Manager:
 
         self.transactionLockMap[transaction].append(lock)
         return True
-
+    def releaseAllLocks(self, transaction):
+        if transaction not in self.transactionLockMap.keys():
+            return
+        for lock in self.transactionLockMap[transaction]:
+            self.releaseLock(transaction, lock)
+        
     def releaseLock(self, transaction, lock):
         if lock.releaseLock(transaction):
             self.transactionLockMap[transaction].remove(lock)

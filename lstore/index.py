@@ -11,8 +11,8 @@ class Index:
         # One index for each table. All our empty initially.
         self.table = table
         self.indices = [None for i in range(table.num_columns)]
-        self.indices[0] = self.create_index(0)
         self.lock = threading.Lock()
+        self.indices[0] = self.create_index(0)
 
     # insert new records
     # if key not unique, will overwrite old rid value
@@ -75,6 +75,9 @@ class Index:
             for i in range(rec_no):
                 rid = pg.get_bp_rid(i)
                 val = self.get_latest_val(pg, i, column_number)
+                print(val)
+                print(begin)
+                print(end)
                 if val >= begin and val <= end:
                     ret.append(rid)
                 pg.unpin()
@@ -82,18 +85,14 @@ class Index:
 
     def get_latest_val(self, pg, offset, column_number):
         if(pg.get_schema(offset)[column_number] == '0'):
-            print("in if - get latest val")
             return pg.get_col_value(column_number, offset)
-        print("after if")
         indirection = pg.get_indirection(offset)
-        print(indirection)
         tail_page_id = self.table.page_directory[indirection][0]
         tail_record_offset = self.table.page_directory[indirection][1]
         tail_page = self.table.buffer_pool.return_page(tail_page_id)
         tail_page.pin()
         val = tail_page.get_col_value(column_number, tail_record_offset)
         tail_page.unpin()
-        print("not in if - get latest val")
         return val
     """
     # optional: Create index on specific column
@@ -113,11 +112,8 @@ class Index:
                 self.insert(rid, val, column_number)
 
     def remove(self, column, rid, value):
-        print("in remove")
         if self.indices[column] == None:
-            print("no inmdex")
             return
-        print("yes index")
         self.indices[column].get(value).remove(rid)
     """
     # optional: Drop index of specific column

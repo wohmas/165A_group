@@ -67,10 +67,14 @@ class Transaction:
     # If you choose to implement this differently this method must still return True if transaction commits or False on abort
 
     def run(self):
-        while True:
-            if self.getLocks():
-                break
-        
+        if not self.getLocks():
+            return False
+        # code to keep running the transaction till it gets the locks commented due to bugs of losing data
+        # while True:
+        #     if self.getLocks():
+        #         print("in loop")
+        #         break
+
         i = 0
 
         for query, args in self.queries:

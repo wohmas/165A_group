@@ -7,12 +7,12 @@ import threading
 
 class Index:
 
-    def __init__(self, table):
+    def __init__(self, table, key):
         # One index for each table. All our empty initially.
         self.table = table
         self.indices = [None for i in range(table.num_columns)]
         self.lock = threading.Lock()
-        self.indices[0] = self.create_index(0)
+        self.indices[key] = self.create_index(key)
 
     # insert new records
     # if key not unique, will overwrite old rid value

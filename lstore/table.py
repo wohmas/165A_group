@@ -227,7 +227,7 @@ class Table:
         self.tp_num = tp_num
         self.latest_bp_id = self.create_pid("b")
         self.buffer_pool = BufferPool(name, num_columns)
-        self.index = Index(self)
+        self.index = Index(self, key)
         self.merge_count = merge_count
         self.merge_group = 0
         self.update_count = 0
@@ -277,11 +277,13 @@ class Table:
         # use index to get base rid related to key
         # find basepage ID from page directory
 
-        bp_rid = self.index.locate(0, key)[0]
+        bp_rid = self.index.locate(self.key, key)[0]
         # print(self.page_directory)
         #print("bp_rid: ", bp_rid)
-
+        if bp_rid not in self.page_directory.keys():
+            return True
         # find basepage ID from page directory
+
         bp_id = self.page_directory[bp_rid][0]
         base_offset = self.page_directory[bp_rid][1]
         # get basepage from bufferpool using ID
@@ -290,7 +292,7 @@ class Table:
 
         # generate schema for updated columns
         if cols[0] != None:
-            if self.index.locate(0, cols[0]) != []:
+            if self.index.locate(self.key, cols[0]) != []:
                 print("same primary key")
                 return False
         new_schema = ''.join('0' if val is None else '1' for val in cols)
@@ -323,6 +325,8 @@ class Table:
         last_schema = base_page.get_schema(base_offset)
         # Make input cols mutable
         val = list(cols)
+        if indirection not in self.page_directory.keys():
+            return True
         # use old indirection value (first step of this block) to get corresponding page directory ID
         last_update_record_id = self.page_directory[indirection][0]
         last_update_record_offset = self.page_directory[indirection][1]
@@ -366,7 +370,7 @@ class Table:
     def insert(self, values, schema, transaction=None):
 
         # or self.index.locate(0, values[0])!= None condition removed
-        if self.index.locate(0, values[0]) != []:
+        if self.index.locate(self.key, values[0]) != []:
             return False
         # ask bufferpool for newest base page
         # call has_capacity on page_group
@@ -422,6 +426,8 @@ class Table:
     # only for primary keys for now
     def search_rid(self, base_rid, projected_columns_index, relative_version):
         # id of page corresponding to rid
+        if base_rid not in self.page_directory.keys():
+            return Record(base_rid, 0, [0]*self.num_columns)
         base_page_id = self.page_directory[base_rid][0]
         # offset value corresponding to rid
         base_record_offset = self.page_directory[base_rid][1]
@@ -441,6 +447,8 @@ class Table:
                 break
             # use indirection to go to last tail page
             indirect_rid = tail_page.get_indirection(tail_record_offset)
+            if indirect_rid not in self.page_directory.keys():
+                break
             tail_page_id = self.page_directory[indirect_rid][0]
             tail_record_offset = self.page_directory[indirect_rid][1]
             tail_page.unpin()
@@ -482,7 +490,7 @@ class Table:
         return records
 
     def sum(self, start_range, end_range, aggregate_column_index, relative_version):
-        bp_rids = self.index.locate_range(start_range, end_range, 0)
+        bp_rids = self.index.locate_range(start_range, end_range, self.key)
 
         for i in bp_rids:
             if not self.does_exist(i):
@@ -504,13 +512,15 @@ class Table:
         return self.lock_manager.getLock(transaction, self.rid_lock_map[rid], "e")
 
     def get_update_locks(self, transaction, primary_key):
-        bp_rid = self.index.locate(0, primary_key)[0]
+        bp_rid = self.index.locate(self.key, primary_key)[0]
         if bp_rid not in self.rid_lock_map.keys():
             self.rid_lock_map[bp_rid] = TPLock()
         got_lock1 = self.lock_manager.getLock(
             transaction, self.rid_lock_map[bp_rid], "e")
         if not got_lock1:
             return False
+        if bp_rid not in self.page_directory.keys():
+            return True
         bp_id = self.page_directory[bp_rid][0]
         base_offset = self.page_directory[bp_rid][1]
         base_page = self.buffer_pool.return_page(bp_id)
@@ -544,6 +554,8 @@ class Table:
                 transaction, self.rid_lock_map[base_rid], "s")
             if not gotLock:
                 return False
+            if base_rid not in self.page_directory.keys():
+                return True
             base_page_id = self.page_directory[base_rid][0]
             # offset value corresponding to rid
             base_record_offset = self.page_directory[base_rid][1]
@@ -561,6 +573,8 @@ class Table:
             else:
                 base_page.unpin()
                 continue
+            if indirect_rid not in self.page_directory.keys():
+                return True
             # go to latest tail page, get its info
             tail_page_id = self.page_directory[indirect_rid][0]
             tail_record_offset = self.page_directory[indirect_rid][1]
@@ -578,6 +592,8 @@ class Table:
                     base_page.unpin()
                     tail_page.unpin()
                     return False
+                if indirect_rid not in self.page_directory.keys():
+                    break
                 tail_page_id = self.page_directory[indirect_rid][0]
                 tail_record_offset = self.page_directory[indirect_rid][1]
                 tail_page.unpin()

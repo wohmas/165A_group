@@ -41,10 +41,8 @@ class TransactionWorker:
         self.runThread.join()
 
     def __run(self):
-        for index in range(len(self.transactions)):
+        for transaction in self.transactions:
             # each transaction returns True if committed or False if aborted
-            # create a loop here if result is false to run the transaction over and over
-            result = self.transactions[index].run()
-            self.stats.append(result)
+            self.stats.append(transaction.run())
         # stores the number of transactions that committed
         self.result = len(list(filter(lambda x: x, self.stats)))

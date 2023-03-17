@@ -28,11 +28,11 @@ class Database():
                     pg_dir = {}
                     for key in table_attributes[3].keys():
                         pg_dir[int(key)] = table_attributes[3][key]
+                    print("PAGE DIR: ", pg_dir)
 
                     pg_range = {}
                     for key in table_attributes[7].keys():
                         pg_range[int(key)] = table_attributes[7][key]
- 
 
                     # print("pg directory:\n", table_attributes[3])
                     name = Table(name=table_attributes[0], num_columns=table_attributes[1], key=table_attributes[2],
@@ -65,7 +65,7 @@ class Database():
             table_attributes.append(table.bp_num)
             table_attributes.append(table.tp_num)
             table_attributes.append(table.merge_count)
-
+            print("PAGE DIR: ", table.page_directory)
             with open(table.name+".txt", "w") as file:
                 file.write(json.dumps(table_attributes))
 

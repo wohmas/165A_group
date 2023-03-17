@@ -9,7 +9,6 @@ test_table = db.create_table("test", 5, 0)
 query = Query(test_table)
 
 
-
 t = Transaction()
 #t2 = Transaction()
 t.add_query(query.insert, test_table, *[1, 1, 1, 1, 1])
@@ -35,8 +34,8 @@ t.add_query(query.insert, test_table, *[6, 6, 6, 6, 6])
 
 
 t.run()
-#t2.run()
+# t2.run()
 #print("after transaction")
-#test_table.print_pg()
+# test_table.print_pg()
 
 db.close()

@@ -12,7 +12,6 @@ class Query:
 
     def __init__(self, table):
         self.table = table
-        
 
     """
     # internal Method
@@ -30,10 +29,9 @@ class Query:
     # Returns False if insert fails for whatever reason
     """
 
-    def insert(self, *columns):
+    def insert(self, *columns, transaction= None):
         schema_encoding = '0' * self.table.num_columns
-        self.table.insert(columns, schema_encoding)
-        return True
+        return self.table.insert(columns, schema_encoding, transaction= transaction)
 
     """
     # Read matching record with specified search key
@@ -68,8 +66,8 @@ class Query:
     # Returns False if no records exist with given key or if the target record cannot be accessed due to 2PL locking
     """
 
-    def update(self, primary_key, *columns):
-        self.table.update(primary_key, columns)
+    def update(self, primary_key, *columns, transaction = None):
+        return self.table.update(primary_key, columns, transaction= transaction)
 
     """
     :param start_range: int         # Start of the key range to aggregate 
@@ -94,8 +92,7 @@ class Query:
     """
 
     def sum_version(self, start_range, end_range, aggregate_column_index, relative_version):
-       return self.table.sum(start_range, end_range, aggregate_column_index, relative_version)
-
+        return self.table.sum(start_range, end_range, aggregate_column_index, relative_version)
 
     """
     incremenets one column of the record

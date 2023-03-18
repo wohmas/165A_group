@@ -1,10 +1,18 @@
 
 class Page:
 
-    def __init__(self):
-        self.num_records = 0
-        self.data = bytearray(4096)
-
+    def __init__(self, r_num, data):
+        self.num_records = r_num
+        self.data = self.get_data(data)
+        
+    def get_data(self, data):
+        if data == -1:
+            return bytearray(4096)
+        else:
+            return bytearray(data)
+    
+    def getAll(self):
+        return self.data
     def has_capacity(self):
         return (self.num_records < 512)
     

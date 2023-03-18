@@ -42,17 +42,18 @@ for i in range(number_of_transactions):
 for i in range(0, number_of_records):
     key = 92106429 + i
     keys.append(key)
-    records[key] = [key, randint(i * 20, (i + 1) * 20), randint(i * 20, (i + 1) * 20), randint(i * 20, (i + 1) * 20), randint(i * 20, (i + 1) * 20)]
+    records[key] = [key, randint(i * 20, (i + 1) * 20), randint(
+        i * 20, (i + 1) * 20), randint(i * 20, (i + 1) * 20), randint(i * 20, (i + 1) * 20)]
     t = insert_transactions[i % number_of_transactions]
     t.add_query(query.insert, grades_table, *records[key])
 
 transaction_workers = []
 for i in range(num_threads):
     transaction_workers.append(TransactionWorker())
-    
-for i in range(number_of_transactions):
-    transaction_workers[i % num_threads].add_transaction(insert_transactions[i])
 
+for i in range(number_of_transactions):
+    transaction_workers[i % num_threads].add_transaction(
+        insert_transactions[i])
 
 
 # run transaction workers
@@ -72,7 +73,8 @@ for key in keys:
         if column != records[key][i]:
             error = True
     if error:
-        print('select error on', key, ':', record, ', correct:', records[key])
+        print('select error on', key, ':',
+              record, ', correct:', records[key])
     else:
         pass
         # print('select on', key, ':', record)
